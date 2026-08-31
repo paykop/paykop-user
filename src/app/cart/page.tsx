@@ -19,6 +19,7 @@ import { CartResponse, CartItem } from "@/types";
 import { formatPaise } from "@/lib/money";
 import { firstImage } from "@/lib/media";
 import { MediaThumb } from "@/components/ui/MediaThumb";
+import { Container } from "@/components/ui/Container";
 
 export default function CartPage() {
   const [cart, setCart] = useState<CartResponse | null>(null);
@@ -103,7 +104,7 @@ export default function CartPage() {
   const totalPrice = cart?.total_price || 0;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <Container className="py-8 space-y-8">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-gray-500">
         <Link href="/" className="hover:text-gray-900">
@@ -190,52 +191,51 @@ export default function CartPage() {
                     </div>
 
                     {/* Quantity & Actions */}
-                    <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
-                      {/* Qty Counter */}
-                      <div className="flex items-center rounded-xl border border-gray-200 bg-gray-50 p-1">
-                        <button
-                          disabled={isItemUpdating || item.quantity <= 1}
-                          onClick={() => handleUpdateQty(item.id, item.quantity - 1)}
-                          className="w-7 h-7 rounded-lg bg-white text-gray-700 font-bold flex items-center justify-center hover:bg-gray-100 disabled:opacity-40 cursor-pointer shadow-xs"
-                        >
-                          -
-                        </button>
-                        <span className="w-8 text-center font-bold text-xs text-gray-900">
-                          {item.quantity}
-                        </span>
-                        <button
-                          disabled={isItemUpdating}
-                          onClick={() => handleUpdateQty(item.id, item.quantity + 1)}
-                          className="w-7 h-7 rounded-lg bg-white text-gray-700 font-bold flex items-center justify-center hover:bg-gray-100 cursor-pointer shadow-xs"
-                        >
-                          +
-                        </button>
-                      </div>
+                    <div className="flex flex-col gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100 min-w-0">
+                      <div className="flex items-center justify-between gap-4 w-full sm:justify-end sm:gap-6">
+                        <div className="flex items-center rounded-xl border border-gray-200 bg-gray-50 p-1">
+                          <button
+                            disabled={isItemUpdating || item.quantity <= 1}
+                            onClick={() => handleUpdateQty(item.id, item.quantity - 1)}
+                            className="w-7 h-7 rounded-lg bg-white text-gray-700 font-bold flex items-center justify-center hover:bg-gray-100 disabled:opacity-40 cursor-pointer shadow-xs"
+                          >
+                            -
+                          </button>
+                          <span className="w-8 text-center font-bold text-xs text-gray-900">
+                            {item.quantity}
+                          </span>
+                          <button
+                            disabled={isItemUpdating}
+                            onClick={() => handleUpdateQty(item.id, item.quantity + 1)}
+                            className="w-7 h-7 rounded-lg bg-white text-gray-700 font-bold flex items-center justify-center hover:bg-gray-100 cursor-pointer shadow-xs"
+                          >
+                            +
+                          </button>
+                        </div>
 
-                      {/* Total & Checkout Row Action */}
-                      <div className="text-right">
                         <div className="font-black text-sm text-gray-900">
                           {formatPaise(itemTotal)}
                         </div>
                       </div>
 
-                      {/* Single Item Checkout Action */}
-                      <Link
-                        href={`/checkout?product_id=${item.product_id}&quantity=${item.quantity}`}
-                        className="px-4 py-2 rounded-xl shopcart-btn-primary text-xs font-bold flex items-center gap-1.5 shadow-sm whitespace-nowrap"
-                      >
-                        <Zap className="w-3.5 h-3.5 text-[var(--accent-green)]" />
-                        <span>Checkout item</span>
-                      </Link>
+                      <div className="flex items-center gap-2 w-full sm:w-auto sm:justify-end">
+                        <Link
+                          href={`/checkout?product_id=${item.product_id}&quantity=${item.quantity}`}
+                          className="flex-1 sm:flex-none px-4 py-2.5 min-h-[44px] rounded-xl shopcart-btn-primary text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
+                        >
+                          <Zap className="w-3.5 h-3.5 text-[var(--accent-green)] shrink-0" />
+                          <span>Checkout item</span>
+                        </Link>
 
-                      <button
-                        onClick={() => handleRemove(item.id)}
-                        disabled={isItemUpdating}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
-                        title="Remove from cart"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        <button
+                          onClick={() => handleRemove(item.id)}
+                          disabled={isItemUpdating}
+                          className="p-2.5 min-h-[44px] min-w-[44px] text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer shrink-0"
+                          title="Remove from cart"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -282,6 +282,6 @@ export default function CartPage() {
           </div>
         </div>
       )}
-    </div>
+    </Container>
   );
 }

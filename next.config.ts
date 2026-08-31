@@ -6,6 +6,7 @@ const defaultImageHosts = [
   "images.unsplash.com",
   "www.gravatar.com",
   "gravatar.com",
+  "cdn.dummyjson.com",
 ];
 
 /** Wildcard CDN patterns (Next.js remotePatterns hostname wildcards). */

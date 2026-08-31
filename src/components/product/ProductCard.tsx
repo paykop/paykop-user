@@ -111,7 +111,7 @@ export function ProductCard({ product }: { product: Product }) {
           </Link>
         </div>
 
-        <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+        <div className="pt-2 border-t border-slate-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="text-base font-black text-slate-900">{formatPaise(product.price)}</div>
             {product.stock > 0 ? (
@@ -120,17 +120,17 @@ export function ProductCard({ product }: { product: Product }) {
               <div className="text-[10px] text-slate-400 font-semibold">Check availability</div>
             )}
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 w-full sm:w-auto">
             <button
               onClick={handleAddToCart}
               disabled={isAdding}
-              className={`p-2 rounded-xl text-xs font-semibold cursor-pointer ${
+              className={`p-2.5 min-h-[44px] min-w-[44px] rounded-xl text-xs font-semibold cursor-pointer ${
                 isAdded ? "bg-[var(--accent-green)] text-slate-900" : "bg-slate-100 text-[var(--primary)]"
               }`}
             >
               {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : isAdded ? <Check className="w-4 h-4" /> : <ShoppingBag className="w-4 h-4" />}
             </button>
-            <button onClick={handleBuyNow} className="px-3 py-2 rounded-xl shopcart-btn-primary text-xs font-semibold flex items-center gap-1 cursor-pointer">
+            <button onClick={handleBuyNow} className="flex-1 sm:flex-none px-3 py-2.5 min-h-[44px] rounded-xl shopcart-btn-primary text-xs font-semibold flex items-center justify-center gap-1 cursor-pointer">
               <Zap className="w-3.5 h-3.5 text-[var(--accent-green)]" />
               Buy
             </button>

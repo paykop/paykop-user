@@ -156,7 +156,7 @@ export default function CampaignDetailPage() {
                 <label className="block text-xs font-semibold text-gray-700 mb-2">
                   Select Donation Amount (INR)
                 </label>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[500, 1000, 2500, 5000].map((amt) => (
                     <button
                       key={amt}

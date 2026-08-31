@@ -184,7 +184,7 @@ function CheckoutContent() {
         <div className="lg:col-span-7 space-y-6">
           {/* 1. Delivery Address Selection */}
           <div className="shopcart-card p-6 bg-white space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-[var(--primary)]" />
                 <h3 className="font-bold text-base text-gray-900">1. Delivery Address</h3>

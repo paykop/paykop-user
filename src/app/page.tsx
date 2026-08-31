@@ -8,9 +8,9 @@ import { ProductCard } from "@/components/product/ProductCard";
 import { formatPaise } from "@/lib/money";
 import { Container } from "@/components/ui/Container";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonGrid } from "@/components/ui/SkeletonGrid";
 import { MediaThumb } from "@/components/ui/MediaThumb";
+import { ShelfBlank, padToMinSlots } from "@/components/ui/ShelfBlank";
 
 function bannerHref(banner: { type?: string; link_type?: string; link_id?: string; link_url?: string }) {
   if (banner.link_url) return banner.link_url;
@@ -34,6 +34,8 @@ export default function HomePage() {
 
   const heroBanner = feed?.banners?.[0];
   const extraBanners = feed?.banners?.slice(1) || [];
+  const productSlots = padToMinSlots(nearbyProducts, 4);
+  const serviceSlots = padToMinSlots(feed?.nearbyServices ?? [], 4);
 
   return (
     <div className="space-y-12 pb-20">
@@ -123,25 +125,16 @@ export default function HomePage() {
           />
           {nearbyProductsLoading ? (
             <SkeletonGrid />
-          ) : nearbyProducts.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-              {nearbyProducts.map((prod) => (
-                <ProductCard key={prod.id} product={prod} />
-              ))}
-            </div>
           ) : (
-            <EmptyState
-              title="No nearby products yet"
-              description="Try another location or check back when sellers list inventory near you."
-              action={
-                <button
-                  onClick={openLocationModal}
-                  className="px-5 py-2.5 rounded-full shopcart-btn-primary text-xs font-bold cursor-pointer"
-                >
-                  Change location
-                </button>
-              }
-            />
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+              {productSlots.map(({ item, key }) =>
+                item ? (
+                  <ProductCard key={key} product={item} />
+                ) : (
+                  <ShelfBlank key={key} className="h-72" />
+                )
+              )}
+            </div>
           )}
         </Container>
       </section>
@@ -161,38 +154,38 @@ export default function HomePage() {
         </section>
       )}
 
-      {feed && (feed.serviceCategories.length > 0 || feed.nearbyServices.length > 0) && (
+      {feed && feed.serviceCategories.length > 0 && (
         <section>
           <Container>
             <div className="rounded-3xl bg-[var(--surface-muted)] p-6 sm:p-8">
               <SectionHeader title="Services to help you shop" subtitle="Book verified neighborhood professionals" href="/services" />
-              {feed.serviceCategories.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-6">
-                  {feed.serviceCategories.map((cat) => (
-                    <Link
-                      key={cat.id}
-                      href="/services"
-                      className="px-4 py-2 rounded-full bg-white text-xs font-bold text-slate-800 border border-slate-200"
-                    >
-                      {cat.title}
-                    </Link>
-                  ))}
-                </div>
-              )}
-              {feed.nearbyServices.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {feed.nearbyServices.map((service) => (
-                    <Link key={service.id} href={`/services/${service.id}`} className="shopcart-card p-4 bg-white">
+              <div className="flex flex-wrap gap-2 mb-6">
+                {feed.serviceCategories.map((cat) => (
+                  <Link
+                    key={cat.id}
+                    href={`/services?category_id=${cat.id}`}
+                    className="px-4 py-2 rounded-full bg-white text-xs font-bold text-slate-800 border border-slate-200"
+                  >
+                    {cat.title}
+                  </Link>
+                ))}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {serviceSlots.map(({ item, key }) =>
+                  item ? (
+                    <Link key={key} href={`/services/${item.id}`} className="shopcart-card p-4 bg-white">
                       <div className="relative h-28 rounded-xl overflow-hidden bg-[var(--primary-subtle)] mb-3">
-                        <MediaThumb src={service.image} alt={service.title} className="object-cover" />
+                        <MediaThumb src={item.image} alt={item.title} className="object-cover" />
                       </div>
-                      <h3 className="font-bold text-sm line-clamp-1">{service.title}</h3>
-                      <p className="text-xs text-slate-500">{service.subtitle}</p>
-                      <p className="text-sm font-black text-[var(--primary)] mt-2">{formatPaise(service.price)}</p>
+                      <h3 className="font-bold text-sm line-clamp-1">{item.title}</h3>
+                      <p className="text-xs text-slate-500">{item.subtitle}</p>
+                      <p className="text-sm font-black text-[var(--primary)] mt-2">{formatPaise(item.price)}</p>
                     </Link>
-                  ))}
-                </div>
-              )}
+                  ) : (
+                    <ShelfBlank key={key} className="h-44 bg-white/60" />
+                  )
+                )}
+              </div>
             </div>
           </Container>
         </section>

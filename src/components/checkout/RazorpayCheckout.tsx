@@ -131,6 +131,10 @@ export function RazorpayCheckout({
         throw new Error("Online payments are not configured.");
       }
 
+      if (!intent.razorpay_order_id) {
+        throw new Error("Payment order ID missing from server.");
+      }
+
       const options: RazorpayOptions = {
         key: rzpKey,
         amount: intent.amount || amountPaise,

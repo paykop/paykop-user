@@ -146,7 +146,7 @@ export default function ServiceDetailPage() {
             <p className="text-sm text-gray-600 leading-relaxed">{service.description}</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div className="p-4 rounded-2xl bg-white border border-gray-200 space-y-1">
               <Clock className="w-4 h-4 text-emerald-700" />
               <div className="font-bold text-gray-900">Operating Hours</div>
@@ -198,7 +198,7 @@ export default function ServiceDetailPage() {
             </div>
           ) : (
             <form onSubmit={handleCreateBooking} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">
                     Date *

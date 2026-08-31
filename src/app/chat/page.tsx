@@ -12,12 +12,13 @@ import {
   Sparkles,
 } from "lucide-react";
 import { api } from "@/lib/api/endpoints";
-import { session } from "@/lib/auth/session";
-import { Conversation, ChatMessage, User } from "@/types";
+import { useIsAuthenticated, useSessionUser } from "@/lib/auth/useSessionUser";
+import { Conversation, ChatMessage } from "@/types";
 import { chatWs } from "@/lib/chat/ws";
 
 export default function ChatPage() {
-  const [user] = useState<User | null>(() => session.getUser());
+  const user = useSessionUser();
+  const isAuthenticated = useIsAuthenticated();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConvId, setSelectedConvId] = useState<number | string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -36,7 +37,7 @@ export default function ChatPage() {
   }, [selectedConvId]);
 
   useEffect(() => {
-    if (!session.isAuthenticated()) return;
+    if (!isAuthenticated) return;
 
     chatWs.connect();
 
@@ -73,7 +74,7 @@ export default function ChatPage() {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!selectedConvId) return;
@@ -120,7 +121,7 @@ export default function ChatPage() {
     setMobileThreadOpen(true);
   };
 
-  if (!session.isAuthenticated()) {
+  if (!isAuthenticated) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
         <div className="w-16 h-16 rounded-3xl bg-emerald-50 text-[var(--primary)] flex items-center justify-center mx-auto">

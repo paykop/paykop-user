@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { MediaThumb } from "@/components/ui/MediaThumb";
 import {
   Wrench,
@@ -15,26 +16,42 @@ import { api } from "@/lib/api/endpoints";
 import { useLocationStore } from "@/lib/location/store";
 import { ServiceItem } from "@/types";
 import { formatPaise } from "@/lib/money";
+import { Container } from "@/components/ui/Container";
 
-export default function ServicesPage() {
+function ServicesPageContent() {
+  const searchParams = useSearchParams();
+  const categoryIdParam = searchParams.get("category_id");
+  const parsedCategoryId = categoryIdParam ? Number(categoryIdParam) : NaN;
+  const categoryFilter =
+    Number.isFinite(parsedCategoryId) && parsedCategoryId > 0
+      ? parsedCategoryId
+      : undefined;
+
   const { latitude, longitude, cityName } = useLocationStore();
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
+    setLoading(true);
     api.services
       .list({
         lat: latitude || undefined,
         lng: longitude || undefined,
         radius: 25,
+        category_id: categoryFilter,
       })
       .then((data) => {
-        setServices(Array.isArray(data) ? data : []);
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray((data as { services?: ServiceItem[] })?.services)
+            ? (data as { services: ServiceItem[] }).services
+            : [];
+        setServices(list);
       })
       .catch(() => setServices([]))
       .finally(() => setLoading(false));
-  }, [latitude, longitude]);
+  }, [latitude, longitude, categoryFilter]);
 
   const filtered = services.filter(
     (s) =>
@@ -42,15 +59,32 @@ export default function ServicesPage() {
       (s.category?.name && s.category.name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  const activeCategoryName =
+    categoryFilter != null
+      ? services.find((s) => s.category?.id === categoryFilter)?.category?.name
+      : undefined;
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <Container className="py-8 space-y-8">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-gray-500">
         <Link href="/" className="hover:text-gray-900">
           Home
         </Link>
         <ChevronRight className="w-3.5 h-3.5" />
-        <span className="font-semibold text-gray-900">Local Services</span>
+        {categoryFilter != null ? (
+          <>
+            <Link href="/services" className="hover:text-gray-900">
+              Local Services
+            </Link>
+            <ChevronRight className="w-3.5 h-3.5" />
+            <span className="font-semibold text-gray-900">
+              {activeCategoryName || `Category ${categoryFilter}`}
+            </span>
+          </>
+        ) : (
+          <span className="font-semibold text-gray-900">Local Services</span>
+        )}
       </nav>
 
       {/* Hero Banner */}
@@ -61,10 +95,14 @@ export default function ServicesPage() {
             <span>Hyperlocal Verified Pros</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight">
-            Book Trusted Neighborhood Services
+            {activeCategoryName
+              ? `${activeCategoryName} near you`
+              : "Book Trusted Neighborhood Services"}
           </h1>
           <p className="text-sm text-white/80">
-            From AC repair and plumbing to home cleaning and beauty services in {cityName}.
+            {categoryFilter != null
+              ? `Showing this category in ${cityName}.`
+              : `From AC repair and plumbing to home cleaning and beauty services in ${cityName}.`}
           </p>
 
           {/* Search bar */}
@@ -98,6 +136,11 @@ export default function ServicesPage() {
           <p className="text-xs text-gray-500 max-w-sm mx-auto">
             We are actively enrolling licensed service professionals in your area. Try searching for a different service.
           </p>
+          {categoryFilter != null && (
+            <Link href="/services" className="inline-flex text-xs font-bold text-[var(--primary)]">
+              Clear category filter
+            </Link>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -144,7 +187,7 @@ export default function ServicesPage() {
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                <div className="pt-3 border-t border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="text-[10px] text-gray-400">Consultation / Base Fee</div>
                     <div className="text-base font-black text-gray-900">
@@ -154,7 +197,7 @@ export default function ServicesPage() {
 
                   <Link
                     href={`/services/${service.id}`}
-                    className="px-4 py-2 rounded-xl shopcart-btn-primary text-xs font-bold flex items-center gap-1.5 shadow-sm"
+                    className="w-full sm:w-auto px-4 py-2.5 min-h-[44px] rounded-xl shopcart-btn-primary text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
                   >
                     <Calendar className="w-3.5 h-3.5 text-[var(--accent-green)]" />
                     <span>Book Service</span>
@@ -165,6 +208,20 @@ export default function ServicesPage() {
           })}
         </div>
       )}
-    </div>
+    </Container>
+  );
+}
+
+export default function ServicesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="py-20 text-center">
+          <Loader2 className="w-8 h-8 text-[var(--primary)] animate-spin mx-auto" />
+        </div>
+      }
+    >
+      <ServicesPageContent />
+    </Suspense>
   );
 }

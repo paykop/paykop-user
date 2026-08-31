@@ -26,8 +26,8 @@ import {
 } from "lucide-react";
 import { useLocationStore } from "@/lib/location/store";
 import { session } from "@/lib/auth/session";
+import { useSessionUser } from "@/lib/auth/useSessionUser";
 import { api } from "@/lib/api/endpoints";
-import { User } from "@/types";
 import { LoginModal } from "@/components/auth/LoginModal";
 import { LocationModal } from "@/components/location/LocationModal";
 import { useCart, useCategories } from "@/lib/queries/hooks";
@@ -37,7 +37,7 @@ export function Header() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { cityName, openModal: openLocationModal } = useLocationStore();
-  const [user, setUser] = useState<User | null>(() => session.getUser());
+  const user = useSessionUser();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -55,22 +55,21 @@ export function Header() {
   const cartCount = cart?.total_items || cart?.items?.length || 0;
 
   useEffect(() => {
-    const updateUser = () => {
-      setUser(session.getUser());
+    const invalidateQueries = () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cart });
       queryClient.invalidateQueries({ queryKey: queryKeys.me });
     };
 
     const openLogin = () => setIsLoginModalOpen(true);
 
-    window.addEventListener("paykop_auth_change", updateUser);
+    window.addEventListener("paykop_auth_change", invalidateQueries);
     window.addEventListener("paykop_open_login", openLogin);
-    window.addEventListener("paykop_cart_change", updateUser);
+    window.addEventListener("paykop_cart_change", invalidateQueries);
 
     return () => {
-      window.removeEventListener("paykop_auth_change", updateUser);
+      window.removeEventListener("paykop_auth_change", invalidateQueries);
       window.removeEventListener("paykop_open_login", openLogin);
-      window.removeEventListener("paykop_cart_change", updateUser);
+      window.removeEventListener("paykop_cart_change", invalidateQueries);
     };
   }, [queryClient]);
 
@@ -125,7 +124,6 @@ export function Header() {
       }
     }
     session.clearSession();
-    setUser(null);
     queryClient.removeQueries({ queryKey: queryKeys.cart });
     setIsAccountMenuOpen(false);
     router.push("/");
@@ -198,7 +196,7 @@ export function Header() {
               <form onSubmit={handleSearchSubmit} className="relative">
                 <input
                   type="text"
-                  placeholder="Search products or services..."
+                  placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
@@ -310,9 +308,11 @@ export function Header() {
               ) : (
                 <button
                   onClick={() => setIsLoginModalOpen(true)}
-                  className="px-3 sm:px-4 py-2 rounded-full shopcart-btn-primary text-xs font-semibold cursor-pointer"
+                  className="px-2.5 sm:px-4 py-2 rounded-full shopcart-btn-primary text-xs font-semibold cursor-pointer flex items-center justify-center min-w-[36px] min-h-[36px] sm:min-w-0"
+                  aria-label="Sign in"
                 >
-                  Sign In
+                  <UserIcon className="w-4 h-4 sm:hidden" />
+                  <span className="hidden sm:inline">Sign In</span>
                 </button>
               )}
 
@@ -367,6 +367,9 @@ export function Header() {
             <Link href="/chat" onClick={() => setIsMobileMenuOpen(false)} className="p-2.5 rounded-xl bg-slate-50 flex items-center gap-2">
               <MessageSquare className="w-3.5 h-3.5" /> Chat
             </Link>
+            <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="p-2.5 rounded-xl bg-slate-50 flex items-center gap-2">
+              <Sparkles className="w-3.5 h-3.5 text-[var(--accent-green)]" /> Shop
+            </Link>
             <Link href="/categories" onClick={() => setIsMobileMenuOpen(false)} className="p-2.5 rounded-xl bg-slate-50">Categories</Link>
             <Link href="/services" onClick={() => setIsMobileMenuOpen(false)} className="p-2.5 rounded-xl bg-slate-50">Services</Link>
             <Link href="/donations" onClick={() => setIsMobileMenuOpen(false)} className="p-2.5 rounded-xl bg-slate-50">Donations</Link>
@@ -374,6 +377,18 @@ export function Header() {
             <Link href="/seller" onClick={() => setIsMobileMenuOpen(false)} className="p-2.5 rounded-xl bg-slate-50">Sell</Link>
             {user?.role === "agent" && (
               <Link href="/agent" onClick={() => setIsMobileMenuOpen(false)} className="p-2.5 rounded-xl bg-slate-50">Agent hub</Link>
+            )}
+            {!user && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setIsLoginModalOpen(true);
+                }}
+                className="p-2.5 rounded-xl bg-[var(--primary)] text-white flex items-center gap-2 col-span-2 cursor-pointer"
+              >
+                <UserIcon className="w-3.5 h-3.5" /> Sign In
+              </button>
             )}
           </div>
         )}

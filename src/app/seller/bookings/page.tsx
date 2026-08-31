@@ -127,8 +127,8 @@ export default function ProviderBookingsPage() {
                 </div>
 
                 {/* Status Update Controls */}
-                <div className="flex items-center gap-3 w-full md:w-auto pt-4 md:pt-0 border-t md:border-t-0 border-gray-100">
-                  <div className="text-right mr-2 hidden sm:block">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 w-full md:w-auto pt-4 md:pt-0 border-t md:border-t-0 border-gray-100">
+                  <div className="text-left sm:text-right sm:mr-2">
                     <span className="text-[10px] text-gray-400 block">Fee</span>
                     <span className="text-sm font-black text-[var(--primary)]">
                       {formatPaise(b.total_price || b.service?.fees || 0)}
@@ -136,7 +136,7 @@ export default function ProviderBookingsPage() {
                   </div>
 
                   {b.status !== "completed" && b.status !== "cancelled" && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         onClick={() => handleUpdateStatus(b.id, "confirmed")}
                         disabled={isUpdating || b.status === "confirmed"}

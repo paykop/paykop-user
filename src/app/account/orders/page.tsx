@@ -135,7 +135,7 @@ export default function OrdersPage() {
                 </div>
 
                 {/* Delivery OTP & Details Action */}
-                <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto pt-4 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-4 sm:pt-0 border-t sm:border-t-0 border-gray-100">
                   {order.delivery_otp && (
                     <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-center">
                       <span className="text-[10px] font-bold text-emerald-800 uppercase block tracking-wider">
@@ -149,7 +149,7 @@ export default function OrdersPage() {
 
                   <Link
                     href={`/account/orders/${order.id}`}
-                    className="px-5 py-2.5 rounded-full shopcart-btn-primary text-xs font-bold flex items-center gap-1.5 shadow-sm"
+                    className="w-full sm:w-auto px-5 py-2.5 min-h-[44px] rounded-full shopcart-btn-primary text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
                   >
                     <span>View Details</span>
                     <ChevronRight className="w-3.5 h-3.5" />

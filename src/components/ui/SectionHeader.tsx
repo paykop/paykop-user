@@ -16,7 +16,7 @@ export function SectionHeader({
   icon?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between mb-6 gap-4">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3 sm:gap-4">
       <div className="flex items-center gap-3 min-w-0">
         {icon}
         <div className="min-w-0">

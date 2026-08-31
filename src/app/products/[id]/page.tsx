@@ -175,7 +175,7 @@ export default function ProductDetailPage() {
 
           {/* Price */}
           <div className="p-4 rounded-2xl bg-[var(--canvas)] border border-gray-200 space-y-1">
-            <div className="flex items-baseline gap-3">
+            <div className="flex flex-wrap items-baseline gap-2 sm:gap-3">
               <span className="text-3xl sm:text-4xl font-black text-[var(--primary)]">
                 {formatPaise(product.price)}
               </span>
@@ -273,8 +273,8 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Seller / Store Card */}
-          <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-[var(--primary)] text-white flex items-center justify-center">
                 <Store className="w-5 h-5 text-[var(--accent-green)]" />
               </div>
@@ -288,7 +288,7 @@ export default function ProductDetailPage() {
 
             <Link
               href="/chat"
-              className="px-3.5 py-1.5 rounded-full border border-gray-300 text-xs font-semibold text-gray-700 hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors"
+              className="w-full sm:w-auto text-center px-3.5 py-2.5 min-h-[44px] rounded-full border border-gray-300 text-xs font-semibold text-gray-700 hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors flex items-center justify-center"
             >
               Chat Seller
             </Link>
