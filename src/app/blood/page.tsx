@@ -17,6 +17,7 @@ import { api } from "@/lib/api/endpoints";
 import { session } from "@/lib/auth/session";
 import { BloodRequest } from "@/types";
 import { useLocationStore } from "@/lib/location/store";
+import { toast } from "@/lib/toast";
 
 const BLOOD_GROUPS = ["All", "A+", "O+", "B+", "AB+", "A-", "O-", "B-", "AB-"];
 
@@ -75,7 +76,7 @@ function BloodContent() {
         setShowDonorModal(false);
       }, 2500);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to register donor profile");
+      toast.error(err instanceof Error ? err.message : "Failed to register donor profile");
     } finally {
       setRegistering(false);
     }
@@ -95,7 +96,7 @@ function BloodContent() {
       setInterestNotes("");
       setTimeout(() => setInterestSuccessMsg(""), 4000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to submit donation interest");
+      toast.error(err instanceof Error ? err.message : "Failed to submit donation interest");
     } finally {
       setSubmittingInterest(false);
     }

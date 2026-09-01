@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { api } from "@/lib/api/endpoints";
+import { toast } from "@/lib/toast";
 import { session } from "@/lib/auth/session";
 
 interface RazorpaySuccessResponse {
@@ -103,12 +104,12 @@ export function RazorpayCheckout({
     }
 
     if (!orderId && !bookingId && !campaignId && !subscriptionId) {
-      alert("Payment requires a linked order, booking, campaign, or subscription.");
+      toast.error("Payment requires a linked order, booking, campaign, or subscription.");
       return;
     }
 
     if (!window.Razorpay) {
-      alert("Razorpay checkout is still loading. Please try again in a moment.");
+      toast.error("Razorpay checkout is still loading. Please try again in a moment.");
       return;
     }
 
@@ -161,7 +162,7 @@ export function RazorpayCheckout({
 
             onSuccess(response.razorpay_payment_id);
           } catch (confirmErr: unknown) {
-            alert(
+            toast.error(
               confirmErr instanceof Error
                 ? confirmErr.message
                 : "Payment verification failed."
@@ -181,14 +182,14 @@ export function RazorpayCheckout({
       const rzp = new window.Razorpay(options);
       rzp.on("payment.failed", function (response: RazorpayFailureResponse) {
         setLoading(false);
-        alert(`Payment failed: ${response.error.description}`);
+        toast.error(`Payment failed: ${response.error.description}`);
         if (onFailure) onFailure(response.error);
       });
 
       rzp.open();
     } catch (err: unknown) {
       setLoading(false);
-      alert(err instanceof Error ? err.message : "Failed to initialize payment.");
+      toast.error(err instanceof Error ? err.message : "Failed to initialize payment.");
       if (onFailure) onFailure(err);
     }
   };

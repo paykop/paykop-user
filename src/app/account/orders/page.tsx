@@ -1,26 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { MediaThumb } from "@/components/ui/MediaThumb";
 import { Package, ChevronRight, Loader2, Clock, CheckCircle2, XCircle, Truck } from "lucide-react";
-import { api } from "@/lib/api/endpoints";
-import { session } from "@/lib/auth/session";
 import { Order } from "@/types";
 import { formatPaise } from "@/lib/money";
+import { useOrders } from "@/lib/queries/hooks";
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!session.isAuthenticated()) return;
-    api.orders
-      .listBuyer()
-      .then((data) => setOrders(Array.isArray(data) ? data : []))
-      .catch(() => setOrders([]))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: orders = [], isLoading: loading } = useOrders();
 
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
@@ -58,7 +46,6 @@ export default function OrdersPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-gray-500">
         <Link href="/" className="hover:text-gray-900">
           Home
@@ -71,7 +58,6 @@ export default function OrdersPage() {
         <span className="font-semibold text-gray-900">My Orders</span>
       </nav>
 
-      {/* Header */}
       <div className="pb-4 border-b border-gray-100">
         <h1 className="text-2xl font-black text-gray-900 tracking-tight">Order History</h1>
         <p className="text-xs text-gray-500 mt-0.5">
@@ -102,7 +88,7 @@ export default function OrdersPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {orders.map((order) => {
+          {orders.map((order: Order) => {
             const title = order.product?.title || `Order #${order.id}`;
             const img =
               order.product?.images && order.product.images.startsWith("http")
@@ -114,7 +100,6 @@ export default function OrdersPage() {
                 key={order.id}
                 className="shopcart-card p-6 bg-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6"
               >
-                {/* Product thumbnail & Info */}
                 <div className="flex items-center gap-4 flex-1">
                   <div className="w-20 h-20 rounded-2xl overflow-hidden relative bg-gray-50 shrink-0 border border-gray-100">
                     <MediaThumb src={img} alt={title} className="object-cover" />
@@ -134,7 +119,6 @@ export default function OrdersPage() {
                   </div>
                 </div>
 
-                {/* Delivery OTP & Details Action */}
                 <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-4 sm:pt-0 border-t sm:border-t-0 border-gray-100">
                   {order.delivery_otp && (
                     <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-center">

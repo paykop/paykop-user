@@ -29,11 +29,15 @@ function ServicesPageContent() {
 
   const { latitude, longitude, cityName } = useLocationStore();
   const [services, setServices] = useState<ServiceItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [resolvedParamsKey, setResolvedParamsKey] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const paramsKey = `${latitude ?? ""}:${longitude ?? ""}:${categoryFilter ?? ""}`;
+  const loading = resolvedParamsKey !== paramsKey;
+
   useEffect(() => {
-    setLoading(true);
+    let cancelled = false;
+
     api.services
       .list({
         lat: latitude || undefined,
@@ -47,11 +51,22 @@ function ServicesPageContent() {
           : Array.isArray((data as { services?: ServiceItem[] })?.services)
             ? (data as { services: ServiceItem[] }).services
             : [];
-        setServices(list);
+        if (!cancelled) {
+          setServices(list);
+          setResolvedParamsKey(paramsKey);
+        }
       })
-      .catch(() => setServices([]))
-      .finally(() => setLoading(false));
-  }, [latitude, longitude, categoryFilter]);
+      .catch(() => {
+        if (!cancelled) {
+          setServices([]);
+          setResolvedParamsKey(paramsKey);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [latitude, longitude, categoryFilter, paramsKey]);
 
   const filtered = services.filter(
     (s) =>

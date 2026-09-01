@@ -6,15 +6,44 @@ Next.js 16 storefront for the Paykop hyperlocal marketplace. It talks to the sam
 
 1. Copy `.env.example` to `.env.local`.
 2. Point `NEXT_PUBLIC_API_BASE_URL` at the backend (`http://localhost:8080` or `:8083` if that is how you run `paykop-backend`).
-3. Set `NEXT_PUBLIC_WS_URL` to the chat gateway (`ws://localhost:8080/api/v1/communication/ws/v2`).
+3. Set `NEXT_PUBLIC_WS_URL` to the chat gateway (`ws://localhost:8080/api/v1/communication/ws/v2` locally; **`wss://...` in production**).
 4. Set `NEXT_PUBLIC_RAZORPAY_KEY_ID` to a real Razorpay key. Checkout is disabled without it.
 5. Optional: `NEXT_PUBLIC_SUPPORT_PHONE` for the promo bar.
 6. Optional: `NEXT_PUBLIC_IMAGE_HOSTS` — comma-separated HTTPS hostnames for product/media images (`next/image`). Defaults include `paykop-devapi.podhupu.com`, `images.unsplash.com`, `www.gravatar.com`, and Cloudflare R2 (`**.r2.dev`). Do not use a full `**` wildcard for all hosts.
+7. Optional: `NEXT_PUBLIC_SENTRY_DSN` for error monitoring.
 
 ```bash
 npm install
 npm run dev
 ```
+
+## Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Production build (runs env validation) |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | TypeScript check |
+| `npm test` | Vitest unit tests |
+| `npm run test:e2e` | Playwright smoke tests |
+
+## Deployment
+
+### Docker
+
+```bash
+docker build \
+  --build-arg NEXT_PUBLIC_API_BASE_URL=https://api.example.com \
+  --build-arg NEXT_PUBLIC_WS_URL=wss://api.example.com/api/v1/communication/ws/v2 \
+  --build-arg NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_live_xxx \
+  -t paykop-user .
+docker run -p 3000:3000 paykop-user
+```
+
+### Vercel
+
+Set all `NEXT_PUBLIC_*` environment variables in the Vercel project settings. Production builds require `NEXT_PUBLIC_WS_URL` to use `wss://`.
 
 On the backend, include `http://localhost:3000` in `ALLOWED_ORIGINS`. Local OTP uses `OTP_TEST_MODE=true`; the API may return `debug_otp` in development only.
 

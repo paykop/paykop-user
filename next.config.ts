@@ -12,20 +12,51 @@ const defaultImageHosts = [
 /** Wildcard CDN patterns (Next.js remotePatterns hostname wildcards). */
 const defaultWildcardHosts = ["**.r2.dev"];
 
-const imageHosts = (
-  process.env.NEXT_PUBLIC_IMAGE_HOSTS?.split(",")
-    .map((h) => h.trim())
-    .filter(Boolean) ?? []
-).concat(defaultImageHosts, defaultWildcardHosts);
+function parseImageHosts(): string[] {
+  const fromEnv =
+    process.env.NEXT_PUBLIC_IMAGE_HOSTS?.split(",")
+      .map((h) => h.trim())
+      .filter(Boolean) ?? [];
 
-const uniqueHosts = [...new Set(imageHosts)];
+  const filtered = fromEnv.filter((host) => {
+    if (host === "**") {
+      console.warn("[next.config] Rejecting dangerous image host pattern: **");
+      return false;
+    }
+    if (host.startsWith("http://") || host.startsWith("https://")) {
+      console.warn(`[next.config] Image host should be hostname only, not URL: ${host}`);
+      return false;
+    }
+    return true;
+  });
+
+  return [...new Set([...filtered, ...defaultImageHosts, ...defaultWildcardHosts])];
+}
+
+const uniqueHosts = parseImageHosts();
+
+const securityHeaders = [
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
+];
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   images: {
     remotePatterns: uniqueHosts.map((hostname) => ({
       protocol: "https" as const,
       hostname,
     })),
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: securityHeaders,
+      },
+    ];
   },
 };
 

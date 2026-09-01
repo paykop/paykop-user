@@ -16,6 +16,7 @@ import { api } from "@/lib/api/endpoints";
 import { session } from "@/lib/auth/session";
 import { Product, ProductCategory } from "@/types";
 import { formatPaise, rupeesToPaise } from "@/lib/money";
+import { toast } from "@/lib/toast";
 import {
   isKycVerified,
   KYC_REQUIRED_LISTING_MSG,
@@ -123,7 +124,7 @@ export default function SellerProductsPage() {
       await api.seller.deleteProduct(id);
       fetchProducts({ showLoading: true });
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to delete product");
+      toast.error(err instanceof Error ? err.message : "Failed to delete product");
     }
   };
 

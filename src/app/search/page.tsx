@@ -1,41 +1,22 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Search, Loader2, ShoppingBag, Wrench, ChevronRight } from "lucide-react";
-import { api } from "@/lib/api/endpoints";
-import { Product, ServiceItem } from "@/types";
 import { parseProductImages } from "@/lib/media";
 import { ProductCard } from "@/components/product/ProductCard";
 import { formatPaise } from "@/lib/money";
+import { useSearch } from "@/lib/queries/hooks";
 
 function SearchContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get("q") || "";
 
   const [activeTab, setActiveTab] = useState<"products" | "services">("products");
-  const [products, setProducts] = useState<Product[]>([]);
-  const [services, setServices] = useState<ServiceItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!query.trim()) return;
-
-    api.search
-      .query(query)
-      .then((res) => {
-        setProducts((res.products || []).map((p) => ({ ...p, images: parseProductImages(p) })));
-        setServices(res.services || []);
-      })
-      .catch(() => {
-        setProducts([]);
-        setServices([]);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [query]);
+  const { data, isLoading: loading } = useSearch(query);
+  const products = (data?.products || []).map((p) => ({ ...p, images: parseProductImages(p) }));
+  const services = data?.services || [];
 
   const hasQuery = !!query.trim();
   const displayProducts = hasQuery ? products : [];

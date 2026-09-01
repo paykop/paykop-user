@@ -18,6 +18,7 @@ import { formatPaise } from "@/lib/money";
 import { RazorpayCheckout } from "@/components/checkout/RazorpayCheckout";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { kycStatusChipClass, kycStatusLabel, isKycVerified } from "@/lib/kyc";
+import { toast } from "@/lib/toast";
 
 export default function SellerPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -29,8 +30,16 @@ export default function SellerPage() {
     if (!session.isAuthenticated()) return;
 
     Promise.all([
-      api.auth.getMe().catch(() => session.getUser()),
-      api.subscriptions.getPlans().catch(() => []),
+      api.auth.getMe().catch((err) => {
+        console.error("Failed to load seller profile", err);
+        toast.error("Failed to load seller profile");
+        return session.getUser();
+      }),
+      api.subscriptions.getPlans().catch((err) => {
+        console.error("Failed to load subscription plans", err);
+        toast.error("Failed to load subscription plans");
+        return [];
+      }),
     ])
       .then(([me, planData]) => {
         if (me) {

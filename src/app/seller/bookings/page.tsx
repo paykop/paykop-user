@@ -14,6 +14,7 @@ import { api } from "@/lib/api/endpoints";
 import { session } from "@/lib/auth/session";
 import { Booking } from "@/types";
 import { formatPaise } from "@/lib/money";
+import { toast } from "@/lib/toast";
 
 export default function ProviderBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -43,7 +44,7 @@ export default function ProviderBookingsPage() {
       await api.seller.updateBookingStatus(bookingId, newStatus);
       fetchBookings({ showLoading: true });
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to update booking status");
+      toast.error(err instanceof Error ? err.message : "Failed to update booking status");
     } finally {
       setUpdatingId(null);
     }

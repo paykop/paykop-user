@@ -19,6 +19,7 @@ import { session } from "@/lib/auth/session";
 import { Product, Address, Order } from "@/types";
 import { formatPaise } from "@/lib/money";
 import { RazorpayCheckout } from "@/components/checkout/RazorpayCheckout";
+import { toast } from "@/lib/toast";
 
 function CheckoutContent() {
   const searchParams = useSearchParams();
@@ -57,8 +58,16 @@ function CheckoutContent() {
     }
 
     Promise.all([
-      api.products.getById(productId).catch(() => null),
-      api.addresses.list().catch(() => []),
+      api.products.getById(productId).catch((err) => {
+        console.error("Failed to load product", err);
+        toast.error("Failed to load product");
+        return null;
+      }),
+      api.addresses.list().catch((err) => {
+        console.error("Failed to load addresses", err);
+        toast.error("Failed to load addresses");
+        return [];
+      }),
     ])
       .then(([prodData, addrData]) => {
         if (prodData) setProduct(prodData);

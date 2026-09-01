@@ -11,6 +11,7 @@ import { api } from "@/lib/api/endpoints";
 import { session } from "@/lib/auth/session";
 import { parseProductImages } from "@/lib/media";
 import { MediaThumb } from "@/components/ui/MediaThumb";
+import { toast } from "@/lib/toast";
 import { queryKeys } from "@/lib/queries/keys";
 
 export function ProductCard({ product }: { product: Product }) {
@@ -39,7 +40,7 @@ export function ProductCard({ product }: { product: Product }) {
       window.dispatchEvent(new Event("paykop_cart_change"));
       setTimeout(() => setIsAdded(false), 2000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to add to cart");
+      toast.error(err instanceof Error ? err.message : "Failed to add to cart");
     } finally {
       setIsAdding(false);
     }

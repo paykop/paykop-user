@@ -1,24 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MediaThumb } from "@/components/ui/MediaThumb";
 import { HandHeart, Users, ArrowRight, Loader2, ChevronRight } from "lucide-react";
-import { api } from "@/lib/api/endpoints";
-import { DonationCampaign } from "@/types";
 import { formatPaise } from "@/lib/money";
+import { useDonations } from "@/lib/queries/hooks";
 
 export default function DonationsPage() {
-  const [campaigns, setCampaigns] = useState<DonationCampaign[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.donations
-      .listCampaigns()
-      .then((data) => setCampaigns(Array.isArray(data) ? data : []))
-      .catch(() => setCampaigns([]))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: campaigns = [], isLoading: loading } = useDonations();
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">

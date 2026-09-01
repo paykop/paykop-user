@@ -13,10 +13,21 @@ function generateUUID(): string {
   });
 }
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 export interface RequestOptions extends RequestInit {
   idempotencyKey?: string;
   skipAuth?: boolean;
   params?: Record<string, string | number | boolean | undefined | null>;
+  signal?: AbortSignal;
 }
 
 let isRefreshing = false;
@@ -51,7 +62,7 @@ export async function apiClient<T = unknown>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { idempotencyKey, skipAuth, params, ...fetchOptions } = options;
+  const { idempotencyKey, skipAuth, params, signal, ...fetchOptions } = options;
 
   let url = `${API_BASE_URL}/api/v1${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
@@ -89,6 +100,7 @@ export async function apiClient<T = unknown>(
   const response = await fetch(url, {
     ...fetchOptions,
     headers,
+    signal,
   });
 
   if (response.status === 401 && !skipAuth && endpoint !== "/auth/refresh" && endpoint !== "/auth/otp/verify") {
@@ -100,12 +112,12 @@ export async function apiClient<T = unknown>(
             reject(error || new Error("Session expired. Please log in again."));
             return;
           }
-          // Reuse the same Headers (including original Idempotency-Key) on retry.
           headers.set("Authorization", `Bearer ${newToken}`);
           try {
-            const retryRes = await fetch(url, { ...fetchOptions, headers });
+            const retryRes = await fetch(url, { ...fetchOptions, headers, signal });
             if (!retryRes.ok) {
-              reject(new Error(await errorMessageFromResponse(retryRes)));
+              const msg = await errorMessageFromResponse(retryRes);
+              reject(new ApiError(msg, retryRes.status));
               return;
             }
             if (retryRes.status === 204) {
@@ -147,7 +159,8 @@ export async function apiClient<T = unknown>(
   }
 
   if (!response.ok) {
-    throw new Error(await errorMessageFromResponse(response));
+    const message = await errorMessageFromResponse(response);
+    throw new ApiError(message, response.status);
   }
 
   if (response.status === 204) {

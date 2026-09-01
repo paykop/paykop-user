@@ -1,29 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Wrench, Calendar, MapPin, ChevronRight, Loader2 } from "lucide-react";
-import { api } from "@/lib/api/endpoints";
-import { session } from "@/lib/auth/session";
-import { Booking } from "@/types";
 import { formatPaise } from "@/lib/money";
+import { useBookings } from "@/lib/queries/hooks";
 
 export default function BookingsPage() {
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!session.isAuthenticated()) return;
-    api.services
-      .getBuyerBookings()
-      .then((data) => setBookings(Array.isArray(data) ? data : []))
-      .catch(() => setBookings([]))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: bookings = [], isLoading: loading } = useBookings();
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-gray-500">
         <Link href="/" className="hover:text-gray-900">
           Home
@@ -36,7 +22,6 @@ export default function BookingsPage() {
         <span className="font-semibold text-gray-900">Service Bookings</span>
       </nav>
 
-      {/* Header */}
       <div className="pb-4 border-b border-gray-100">
         <h1 className="text-2xl font-black text-gray-900 tracking-tight">Service Appointments</h1>
         <p className="text-xs text-gray-500 mt-0.5">

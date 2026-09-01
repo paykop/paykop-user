@@ -14,6 +14,7 @@ import {
 import { api } from "@/lib/api/endpoints";
 import { session } from "@/lib/auth/session";
 import { Address } from "@/types";
+import { toast } from "@/lib/toast";
 import { useLocationStore } from "@/lib/location/store";
 
 export default function AddressesPage() {
@@ -69,7 +70,7 @@ export default function AddressesPage() {
       setLandmark("");
       fetchAddresses({ showLoading: true });
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to create address");
+      toast.error(err instanceof Error ? err.message : "Failed to create address");
     } finally {
       setSaving(false);
     }
@@ -80,7 +81,7 @@ export default function AddressesPage() {
       await api.addresses.setDefault(id);
       fetchAddresses({ showLoading: true });
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to set default address");
+      toast.error(err instanceof Error ? err.message : "Failed to set default address");
     }
   };
 
@@ -90,7 +91,7 @@ export default function AddressesPage() {
       await api.addresses.delete(id);
       fetchAddresses({ showLoading: true });
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to delete address");
+      toast.error(err instanceof Error ? err.message : "Failed to delete address");
     }
   };
 

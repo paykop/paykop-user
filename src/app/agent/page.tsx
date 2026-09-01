@@ -1,23 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Briefcase, ChevronRight, Loader2, Plus, Users, Sparkles } from "lucide-react";
-import { api } from "@/lib/api/endpoints";
-import { AgentSellerSummary } from "@/types";
 import { AgentGate } from "@/components/agent/AgentGate";
+import { useAgentSellers } from "@/lib/queries/hooks";
 
 function AgentHubContent() {
-  const [sellers, setSellers] = useState<AgentSellerSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.agent
-      .listSellers()
-      .then((res) => setSellers(res.sellers || []))
-      .catch(() => setSellers([]))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: sellers = [], isLoading: loading } = useAgentSellers();
 
   const onboarded = sellers.filter((s) => s.is_onboarded).length;
   const subscribed = sellers.filter((s) => s.has_subscription).length;

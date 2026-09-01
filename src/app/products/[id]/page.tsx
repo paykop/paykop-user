@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { MediaThumb } from "@/components/ui/MediaThumb";
 import Link from "next/link";
@@ -16,40 +16,34 @@ import {
   Loader2,
   Check,
 } from "lucide-react";
-import { api } from "@/lib/api/endpoints";
-import { Product } from "@/types";
 import { parseProductImages } from "@/lib/media";
 import { formatPaise } from "@/lib/money";
 import { session } from "@/lib/auth/session";
+import { toast } from "@/lib/toast";
+import { useProduct, useAddToCart } from "@/lib/queries/hooks";
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const productId = params.id as string;
 
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedImg, setSelectedImg] = useState<string>("");
+  const { data: rawProduct, isLoading: loading } = useProduct(productId);
+  const addToCart = useAddToCart();
+  const product = useMemo(
+    () => (rawProduct ? { ...rawProduct, images: parseProductImages(rawProduct) } : null),
+    [rawProduct]
+  );
+
+  const [selectedImg, setSelectedImg] = useState("");
   const [quantity, setQuantity] = useState(1);
-  const [isAdding, setIsAdding] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
 
-  useEffect(() => {
-    api.products
-      .getById(productId)
-      .then((data) => {
-        setProduct({ ...data, images: parseProductImages(data) });
-        const imgs = parseProductImages(data);
-        setSelectedImg(imgs[0] || "");
-        setQuantity(1);
-      })
-      .catch((err) => {
-        console.error("Product fetch error:", err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [productId]);
+  const [trackedId, setTrackedId] = useState(productId);
+  if (trackedId !== productId) {
+    setTrackedId(productId);
+    setSelectedImg("");
+    setQuantity(1);
+  }
 
   if (loading) {
     return (
@@ -78,16 +72,14 @@ export default function ProductDetailPage() {
       return;
     }
 
-    setIsAdding(true);
     try {
-      await api.cart.add(product.id, quantity);
+      await addToCart.mutateAsync({ productId: product.id, quantity });
       setIsAdded(true);
       setTimeout(() => setIsAdded(false), 2000);
-      window.dispatchEvent(new Event("paykop_cart_change"));
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to add to cart");
+      toast.error(err instanceof Error ? err.message : "Failed to add to cart");
     } finally {
-      setIsAdding(false);
+      // mutation handles loading state
     }
   };
 
@@ -95,9 +87,8 @@ export default function ProductDetailPage() {
     router.push(`/checkout?product_id=${product.id}&quantity=${quantity}`);
   };
 
-  const images = product.images && product.images.length > 0
-    ? product.images
-    : [selectedImg];
+  const images = product.images && product.images.length > 0 ? product.images : [];
+  const displayImg = selectedImg || images[0] || "";
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
@@ -121,7 +112,7 @@ export default function ProductDetailPage() {
           {/* Main Large Image */}
           <div className="relative pt-[90%] rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm">
             <MediaThumb
-              src={selectedImg || null}
+              src={displayImg || null}
               alt={product.title}
               className="object-cover"
             />
@@ -135,7 +126,7 @@ export default function ProductDetailPage() {
                   key={idx}
                   onClick={() => setSelectedImg(img)}
                   className={`w-20 h-20 rounded-2xl overflow-hidden relative border-2 transition-all cursor-pointer shrink-0 ${
-                    selectedImg === img ? "border-[var(--primary)] shadow-sm" : "border-gray-200 opacity-70 hover:opacity-100"
+                    displayImg === img ? "border-[var(--primary)] shadow-sm" : "border-gray-200 opacity-70 hover:opacity-100"
                   }`}
                 >
                   <MediaThumb src={img} alt={`Thumbnail ${idx + 1}`} className="object-cover" />
@@ -239,14 +230,14 @@ export default function ProductDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
               <button
                 onClick={handleAddToCart}
-                disabled={isAdding || product.stock <= 0}
+                disabled={addToCart.isPending || product.stock <= 0}
                 className={`py-3.5 px-6 rounded-full font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm disabled:opacity-50 ${
                   isAdded
                     ? "bg-emerald-600 text-white"
                     : "bg-gray-100 text-[var(--primary)] hover:bg-[var(--primary-subtle)]"
                 }`}
               >
-                {isAdding ? (
+                {addToCart.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin text-[var(--primary)]" />
                 ) : isAdded ? (
                   <>

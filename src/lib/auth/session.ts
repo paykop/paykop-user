@@ -4,6 +4,17 @@ const ACCESS_TOKEN_KEY = "paykop_access_token";
 const REFRESH_TOKEN_KEY = "paykop_refresh_token";
 const USER_KEY = "paykop_user";
 
+const SESSION_COOKIE = "paykop_session=1";
+const SESSION_COOKIE_CLEAR = "paykop_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+function setSessionCookie() {
+  document.cookie = `${SESSION_COOKIE}; path=/; SameSite=Lax`;
+}
+
+function clearSessionCookie() {
+  document.cookie = SESSION_COOKIE_CLEAR;
+}
+
 function expireLegacyCookie() {
   document.cookie = "paykop_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
 }
@@ -35,6 +46,7 @@ export const session = {
     localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access_token);
     localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh_token);
     expireLegacyCookie();
+    setSessionCookie();
 
     if (user) {
       localStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -54,6 +66,7 @@ export const session = {
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     expireLegacyCookie();
+    clearSessionCookie();
     window.dispatchEvent(new Event("paykop_auth_change"));
   },
 

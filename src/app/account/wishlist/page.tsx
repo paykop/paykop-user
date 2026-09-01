@@ -1,43 +1,36 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { MediaThumb } from "@/components/ui/MediaThumb";
 import { Heart, Trash2, ShoppingBag, ChevronRight, Loader2 } from "lucide-react";
 import { api } from "@/lib/api/endpoints";
-import { session } from "@/lib/auth/session";
-import { WishlistItem } from "@/types";
 import { formatPaise } from "@/lib/money";
+import { toast } from "@/lib/toast";
+
+import { useQueryClient } from "@tanstack/react-query";
+import { useWishlist, useAddToCart } from "@/lib/queries/hooks";
+import { queryKeys } from "@/lib/queries/keys";
 
 export default function WishlistPage() {
-  const [items, setItems] = useState<WishlistItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!session.isAuthenticated()) return;
-    api.wishlist
-      .list()
-      .then((data) => setItems(Array.isArray(data) ? data : []))
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false));
-  }, []);
+  const queryClient = useQueryClient();
+  const { data: items = [], isLoading: loading } = useWishlist();
+  const addToCart = useAddToCart();
 
   const handleRemove = async (productId: number) => {
     try {
       await api.wishlist.remove(productId);
-      setItems((prev) => prev.filter((it) => it.product_id !== productId));
+      queryClient.invalidateQueries({ queryKey: queryKeys.wishlist });
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to remove item");
+      toast.error(err instanceof Error ? err.message : "Failed to remove item");
     }
   };
 
   const handleAddToCart = async (productId: number) => {
     try {
-      await api.cart.add(productId, 1);
-      window.dispatchEvent(new Event("paykop_auth_change"));
-      alert("Added to cart!");
+      await addToCart.mutateAsync({ productId, quantity: 1 });
+      toast.success("Added to cart!");
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to add to cart");
+      toast.error(err instanceof Error ? err.message : "Failed to add to cart");
     }
   };
 

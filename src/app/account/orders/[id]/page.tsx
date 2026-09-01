@@ -12,6 +12,7 @@ import {
 import { api } from "@/lib/api/endpoints";
 import { Order } from "@/types";
 import { formatPaise } from "@/lib/money";
+import { toast } from "@/lib/toast";
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -43,7 +44,7 @@ export default function OrderDetailPage() {
         .catch(() => setOrder(null))
         .finally(() => setLoading(false));
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to cancel order");
+      toast.error(err instanceof Error ? err.message : "Failed to cancel order");
     } finally {
       setCancelling(false);
     }

@@ -3,11 +3,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, useEffect, ReactNode } from "react";
 import { useLocationStore } from "@/lib/location/store";
+import { AppToaster } from "@/components/ui/Toaster";
+import { initSentry } from "@/lib/sentry";
 
 function LocationHydrator() {
   const hydrateFromStorage = useLocationStore((s) => s.hydrateFromStorage);
 
   useEffect(() => {
+    initSentry();
     hydrateFromStorage();
   }, [hydrateFromStorage]);
 
@@ -31,6 +34,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <LocationHydrator />
+      <AppToaster />
       {children}
     </QueryClientProvider>
   );

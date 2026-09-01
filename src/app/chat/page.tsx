@@ -15,6 +15,7 @@ import { api } from "@/lib/api/endpoints";
 import { useIsAuthenticated, useSessionUser } from "@/lib/auth/useSessionUser";
 import { Conversation, ChatMessage } from "@/types";
 import { chatWs } from "@/lib/chat/ws";
+import { toast } from "@/lib/toast";
 
 export default function ChatPage() {
   const user = useSessionUser();
@@ -109,7 +110,7 @@ export default function ChatPage() {
         content,
       });
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to send message");
+      toast.error(err instanceof Error ? err.message : "Failed to send message");
     } finally {
       setSending(false);
     }

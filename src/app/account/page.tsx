@@ -17,6 +17,7 @@ import {
 import { api } from "@/lib/api/endpoints";
 import { session } from "@/lib/auth/session";
 import { User } from "@/types";
+import { toast } from "@/lib/toast";
 
 export default function AccountPage() {
   const router = useRouter();
@@ -43,7 +44,10 @@ export default function AccountPage() {
         setLastName(data.last_name || "");
         setAddress(data.address || "");
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error("Failed to load profile", err);
+        toast.error("Failed to load profile");
+      })
       .finally(() => setLoading(false));
   }, [router]);
 
@@ -63,7 +67,7 @@ export default function AccountPage() {
       setMsg("Profile updated successfully!");
       setTimeout(() => setMsg(""), 3000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to update profile");
+      toast.error(err instanceof Error ? err.message : "Failed to update profile");
     } finally {
       setSaving(false);
     }

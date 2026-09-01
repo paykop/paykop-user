@@ -10,11 +10,50 @@ export interface WsEnvelope {
 
 export type WsMessageHandler = (msg: WsEnvelope) => void;
 
+const DEFAULT_DEV_WS_URL = "ws://localhost:8080/api/v1/communication/ws/v2";
+
+export function resolveWsUrl(): string | null {
+  const configured = process.env.NEXT_PUBLIC_WS_URL;
+  const isProd = process.env.NODE_ENV === "production";
+
+  if (isProd) {
+    if (!configured || !configured.startsWith("wss://")) {
+      console.error(
+        "[chatWs] NEXT_PUBLIC_WS_URL must be set to wss:// in production"
+      );
+      return null;
+    }
+    return configured;
+  }
+
+  return configured || DEFAULT_DEV_WS_URL;
+}
+
 class ChatWebSocketClient {
   private socket: WebSocket | null = null;
   private handlers: Set<WsMessageHandler> = new Set();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempts = 0;
+  private authListenerAttached = false;
+
+  constructor() {
+    if (typeof window !== "undefined") {
+      this.attachAuthListener();
+    }
+  }
+
+  private attachAuthListener() {
+    if (this.authListenerAttached) return;
+    this.authListenerAttached = true;
+    window.addEventListener("paykop_auth_change", () => {
+      if (!session.getAccessToken()) {
+        this.disconnect();
+        return;
+      }
+      this.disconnect();
+      this.connect();
+    });
+  }
 
   connect() {
     if (typeof window === "undefined") return;
@@ -29,7 +68,8 @@ class ChatWebSocketClient {
       return;
     }
 
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080/api/v1/communication/ws/v2";
+    const wsUrl = resolveWsUrl();
+    if (!wsUrl) return;
 
     try {
       this.socket = new WebSocket(wsUrl, ["paykop-protocol", token]);

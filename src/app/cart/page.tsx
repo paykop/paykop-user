@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   ShoppingBag,
@@ -10,40 +10,29 @@ import {
   Loader2,
   ShieldCheck,
   Truck,
-  ArrowRight,
   Info,
 } from "lucide-react";
-import { api } from "@/lib/api/endpoints";
-import { session } from "@/lib/auth/session";
-import { CartResponse, CartItem } from "@/types";
+import { CartItem } from "@/types";
 import { formatPaise } from "@/lib/money";
 import { firstImage } from "@/lib/media";
 import { MediaThumb } from "@/components/ui/MediaThumb";
 import { Container } from "@/components/ui/Container";
+import { useCart, useUpdateCartQty, useRemoveFromCart } from "@/lib/queries/hooks";
+import { toast } from "@/lib/toast";
 
 export default function CartPage() {
-  const [cart, setCart] = useState<CartResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: cart, isLoading: loading } = useCart();
+  const updateQty = useUpdateCartQty();
+  const removeItem = useRemoveFromCart();
   const [updatingId, setUpdatingId] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!session.isAuthenticated()) return;
-    api.cart
-      .get()
-      .then((data) => setCart(data))
-      .catch(() => setCart(null))
-      .finally(() => setLoading(false));
-  }, []);
 
   const handleUpdateQty = async (itemId: number, newQty: number) => {
     if (newQty < 1) return;
     setUpdatingId(itemId);
     try {
-      const updated = await api.cart.updateQuantity(itemId, newQty);
-      setCart(updated);
-      window.dispatchEvent(new Event("paykop_auth_change"));
+      await updateQty.mutateAsync({ itemId, quantity: newQty });
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to update quantity");
+      toast.error(err instanceof Error ? err.message : "Failed to update quantity");
     } finally {
       setUpdatingId(null);
     }
@@ -52,11 +41,9 @@ export default function CartPage() {
   const handleRemove = async (itemId: number) => {
     setUpdatingId(itemId);
     try {
-      const updated = await api.cart.remove(itemId);
-      setCart(updated);
-      window.dispatchEvent(new Event("paykop_auth_change"));
+      await removeItem.mutateAsync(itemId);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to remove item");
+      toast.error(err instanceof Error ? err.message : "Failed to remove item");
     } finally {
       setUpdatingId(null);
     }
@@ -79,33 +66,11 @@ export default function CartPage() {
     return firstImage(item.product?.image);
   };
 
-  if (!session.isAuthenticated()) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
-        <div className="w-16 h-16 rounded-3xl bg-emerald-50 text-[var(--primary)] flex items-center justify-center mx-auto shadow-sm">
-          <ShoppingBag className="w-8 h-8" />
-        </div>
-        <h2 className="text-2xl font-black text-gray-900 tracking-tight">Your Cart is Waiting</h2>
-        <p className="text-xs sm:text-sm text-gray-500 max-w-sm mx-auto">
-          Please sign in with your phone number to view items in your cart and proceed to checkout.
-        </p>
-        <button
-          onClick={() => window.dispatchEvent(new CustomEvent("paykop_open_login"))}
-          className="px-8 py-3.5 rounded-full shopcart-btn-primary font-bold text-xs shadow-md cursor-pointer inline-flex items-center gap-2"
-        >
-          <span>Sign In to Continue</span>
-          <ArrowRight className="w-4 h-4 text-[var(--accent-green)]" />
-        </button>
-      </div>
-    );
-  }
-
   const items = cart?.items || [];
   const totalPrice = cart?.total_price || 0;
 
   return (
     <Container className="py-8 space-y-8">
-      {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-gray-500">
         <Link href="/" className="hover:text-gray-900">
           Home
@@ -114,7 +79,6 @@ export default function CartPage() {
         <span className="font-semibold text-gray-900">Shopping Cart</span>
       </nav>
 
-      {/* Header */}
       <div className="pb-4 border-b border-gray-100">
         <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
           Your Shopping Cart
@@ -147,15 +111,15 @@ export default function CartPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Items List */}
           <div className="lg:col-span-8 space-y-4">
-            {/* Hyperlocal single-checkout informational alert */}
             <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-3">
               <Info className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
               <div className="space-y-0.5">
                 <span className="font-bold">Hyperlocal 1-Click Fulfillment:</span>
                 <p className="text-emerald-800">
-                  Each product is dispatched directly by its verified local merchant. Click &ldquo;Checkout this item&rdquo; on the product row below to complete instant Razorpay payment.
+                  Each product is dispatched directly by its verified local merchant. Click
+                  &ldquo;Checkout this item&rdquo; on the product row below to complete instant
+                  Razorpay payment.
                 </p>
               </div>
             </div>
@@ -172,7 +136,6 @@ export default function CartPage() {
                     key={item.id}
                     className="py-5 first:pt-0 last:pb-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
                   >
-                    {/* Image & Title */}
                     <div className="flex items-center gap-4 flex-1">
                       <div className="w-20 h-20 rounded-2xl overflow-hidden relative bg-gray-50 shrink-0 border border-gray-100">
                         <MediaThumb src={img} alt={title} className="object-cover" />
@@ -190,7 +153,6 @@ export default function CartPage() {
                       </div>
                     </div>
 
-                    {/* Quantity & Actions */}
                     <div className="flex flex-col gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100 min-w-0">
                       <div className="flex items-center justify-between gap-4 w-full sm:justify-end sm:gap-6">
                         <div className="flex items-center rounded-xl border border-gray-200 bg-gray-50 p-1">
@@ -243,7 +205,6 @@ export default function CartPage() {
             </div>
           </div>
 
-          {/* Cart Summary Card */}
           <div className="lg:col-span-4 shopcart-card p-6 bg-white space-y-6">
             <h3 className="font-black text-base text-gray-900 pb-3 border-b border-gray-100">
               Cart Summary
