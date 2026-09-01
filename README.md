@@ -59,6 +59,13 @@ On the backend, include `http://localhost:3000` in `ALLOWED_ORIGINS`. Local OTP 
 ## Seller KYC policy
 
 - **Self-serve sellers** must have `kyc_status=verified` (plus onboarded + subscription on the API) before listing products/services. The storefront disables “Add product” until verified; the Go API enforces this via `RequireSellerReady`.
-- **Agent trial listings** do **not** require KYC. Agents can create products/services for a seller without verification. KYC applies when that seller later publishes via self-serve APIs.
+- **Seller KYC UI** is at **`/seller/kyc`** (auth + seller gate). Flow: fetch requirements → upload documents via `POST /storage/presigned-url` (`purpose=kyc`) → save draft (`PUT /sellers/me/kyc`) → submit (`POST /sellers/me/kyc/submit`). `/kyc` redirects to `/seller/kyc`.
+- **Agent trial listings** do **not** require KYC. Agents can create products/services for a seller without verification via `/agent/sellers/:id/*`. Agent-assisted KYC is at `/agent/sellers/:id/kyc`.
 - **Donations and blood requests** are public-service / community flows — **not** KYC-gated.
-- KYC document upload is via the seller app / API (`POST /storage/presigned-url` `purpose=kyc` + `/sellers/me/kyc`), not this storefront yet.
+- Product and KYC images use the shared presigned upload helper (`src/lib/upload/presignedUpload.ts`).
+
+## Search
+
+- Global federated search: `GET /search?q=` (partial ILIKE match across products, services, donations, blood, users).
+- Product-only search: `GET /search/products` with filters.
+- Header autocomplete debounces and calls `GET /search?q=&limit=8`. Full results at `/search?q=`.

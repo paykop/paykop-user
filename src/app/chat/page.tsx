@@ -87,6 +87,8 @@ export default function ChatPage() {
       })
       .catch(() => setMessages([]))
       .finally(() => setLoadingMsgs(false));
+
+    api.chat.markAsRead(selectedConvId).catch(() => undefined);
   }, [selectedConvId]);
 
   useEffect(() => {

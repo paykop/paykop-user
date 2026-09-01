@@ -53,9 +53,10 @@ export default function BookingsPage() {
       ) : (
         <div className="space-y-4">
           {bookings.map((b) => (
-            <div
+            <Link
               key={b.id}
-              className="shopcart-card p-6 bg-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6"
+              href={`/bookings/${b.id}`}
+              className="shopcart-card p-6 bg-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 hover:border-[var(--primary)] transition-all block"
             >
               <div className="space-y-2 flex-1">
                 <div className="flex items-center gap-2">
@@ -103,7 +104,7 @@ export default function BookingsPage() {
                   </div>
                 )}
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

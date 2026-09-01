@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { MediaThumb } from "@/components/ui/MediaThumb";
+import { ReviewsSection } from "@/components/reviews/ReviewsSection";
 import Link from "next/link";
 import {
   Star,
@@ -279,6 +280,10 @@ export default function ServiceDetailPage() {
           )}
         </div>
       </div>
+
+      {service && (
+        <ReviewsSection targetType="service" targetId={service.id} />
+      )}
     </div>
   );
 }

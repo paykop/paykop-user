@@ -11,10 +11,12 @@ import {
   Sparkles,
   Wrench,
   CheckCircle2,
+  ShieldCheck,
+  Circle,
 } from "lucide-react";
 import { api } from "@/lib/api/endpoints";
 import { useLocationStore } from "@/lib/location/store";
-import { AgentSellerSummary } from "@/types";
+import { AgentOnboardingStatus, AgentSellerSummary, SellerSubscription } from "@/types";
 import { AgentGate } from "@/components/agent/AgentGate";
 import { kycStatusChipClass, kycStatusLabel } from "@/lib/kyc";
 
@@ -24,6 +26,8 @@ function SellerDetailContent() {
   const { latitude, longitude, cityName, formattedAddress } = useLocationStore();
 
   const [seller, setSeller] = useState<AgentSellerSummary | null>(null);
+  const [onboarding, setOnboarding] = useState<AgentOnboardingStatus | null>(null);
+  const [subscription, setSubscription] = useState<SellerSubscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
@@ -44,17 +48,26 @@ function SellerDetailContent() {
   const [bizPostal, setBizPostal] = useState("");
 
   const loadSeller = () =>
-    api.agent
-      .getSeller(sellerId)
-      .then((data) => {
+    Promise.all([
+      api.agent.getSeller(sellerId),
+      api.agent.getOnboardingStatus(sellerId).catch(() => null),
+      api.agent.getSellerSubscription(sellerId).catch(() => null),
+    ])
+      .then(([data, onboardingData, subData]) => {
         setSeller(data);
+        setOnboarding(onboardingData);
+        setSubscription(subData);
         setFirstName(data.first_name || "");
         setLastName(data.last_name || "");
         setPhone((data.phone || "").replace(/^\+91/, ""));
         setEmail(data.email || "");
         setAddress(data.address || "");
       })
-      .catch(() => setSeller(null))
+      .catch(() => {
+        setSeller(null);
+        setOnboarding(null);
+        setSubscription(null);
+      })
       .finally(() => setLoading(false));
 
   const load = ({ showLoading = false }: { showLoading?: boolean } = {}) => {
@@ -158,8 +171,19 @@ function SellerDetailContent() {
     setSaving(true);
     setErrorMsg("");
     try {
-      const res = await api.agent.grantTrial(sellerId);
-      flash(`Trial granted (${res.plan}) until ${res.expires_at || "n/a"}`);
+      const plans = await api.subscriptions.getPlans();
+      const trialPlan = plans.find((p) => p.price === 0) ?? plans[0];
+      if (!trialPlan) {
+        setErrorMsg("No subscription plans available.");
+        return;
+      }
+      const res = await api.agent.subscribeSeller(sellerId, trialPlan.id);
+      const sub = res.subscription;
+      flash(
+        sub
+          ? `Trial granted (${sub.plan}) until ${sub.expires_at || "n/a"}`
+          : "Subscription activated"
+      );
       load({ showLoading: true });
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Failed to grant trial");
@@ -239,8 +263,53 @@ function SellerDetailContent() {
           >
             <Wrench className="w-3.5 h-3.5" /> Add service
           </Link>
+          <Link
+            href={`/agent/sellers/${sellerId}/kyc`}
+            className="px-4 py-2 rounded-full bg-white border border-gray-200 text-xs font-bold flex items-center gap-1.5"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" /> KYC
+          </Link>
         </div>
       </div>
+
+      {onboarding && (
+        <div className="shopcart-card p-6 bg-white space-y-4">
+          <h2 className="font-bold text-gray-900">Onboarding checklist</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[
+              { label: "Profile complete", done: !!(seller.first_name && seller.phone) },
+              { label: "Subscription active", done: seller.has_subscription || !!subscription },
+              {
+                label: "KYC verified",
+                done: seller.kyc_status === "verified",
+              },
+              {
+                label: "Seller ready",
+                done: onboarding.is_seller_ready ?? false,
+              },
+            ].map((step) => (
+              <div key={step.label} className="flex items-center gap-2 text-sm">
+                {step.done ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <Circle className="w-4 h-4 text-gray-300 shrink-0" />
+                )}
+                <span className={step.done ? "text-gray-900" : "text-gray-500"}>{step.label}</span>
+              </div>
+            ))}
+          </div>
+          {onboarding.next_onboarding_step && (
+            <p className="text-xs text-gray-500">
+              Next step: <span className="font-semibold">{onboarding.next_onboarding_step}</span>
+            </p>
+          )}
+          {onboarding.seller_ready_missing && onboarding.seller_ready_missing.length > 0 && (
+            <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded-lg">
+              Missing: {onboarding.seller_ready_missing.join(", ")}
+            </p>
+          )}
+        </div>
+      )}
 
       {msg && (
         <div className="text-xs text-emerald-700 bg-emerald-50 p-3 rounded-xl border border-emerald-100 flex items-center gap-2">
@@ -413,13 +482,30 @@ function SellerDetailContent() {
 
       <div className="shopcart-card p-6 bg-white space-y-3">
         <h2 className="font-bold text-gray-900 flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-[var(--accent-green)]" /> Subscription trial
+          <Sparkles className="w-4 h-4 text-[var(--accent-green)]" /> Subscription
         </h2>
-        <p className="text-xs text-gray-500">
-          {seller.has_subscription
-            ? "This seller already has an active subscription or trial."
-            : "Grant a trial so the seller can list products and services."}
-        </p>
+        {subscription ? (
+          <div className="text-xs text-gray-600 space-y-1">
+            <p>
+              Plan:{" "}
+              <span className="font-bold text-gray-900">
+                {typeof subscription.plan === "string" ? subscription.plan : subscription.plan?.name}
+              </span>
+              {subscription.is_trial && (
+                <span className="ml-1 text-amber-700 font-bold">(trial)</span>
+              )}
+            </p>
+            {subscription.expires_at && (
+              <p>Expires: {new Date(subscription.expires_at).toLocaleDateString()}</p>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-500">
+            {seller.has_subscription
+              ? "This seller has an active subscription or trial."
+              : "Grant a trial so the seller can list products and services."}
+          </p>
+        )}
         <button
           onClick={handleGrantTrial}
           disabled={saving || seller.has_subscription}

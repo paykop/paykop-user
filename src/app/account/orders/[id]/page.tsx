@@ -21,6 +21,8 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
@@ -29,6 +31,11 @@ export default function OrderDetailPage() {
       .then((data) => setOrder(data))
       .catch(() => setOrder(null))
       .finally(() => setLoading(false));
+
+    api.orders
+      .getPayment(orderId)
+      .then((p) => setPaymentStatus(p.status))
+      .catch(() => setPaymentStatus(null));
   }, [orderId]);
 
   const handleCancelOrder = async () => {
@@ -47,6 +54,19 @@ export default function OrderDetailPage() {
       toast.error(err instanceof Error ? err.message : "Failed to cancel order");
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const handleRegenerateOtp = async () => {
+    setRegenerating(true);
+    try {
+      const res = await api.orders.regenerateOtp(orderId);
+      setOrder((prev) => (prev ? { ...prev, delivery_otp: res.delivery_otp } : prev));
+      toast.success("New delivery OTP generated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to regenerate OTP");
+    } finally {
+      setRegenerating(false);
     }
   };
 
@@ -142,7 +162,21 @@ export default function OrderDetailPage() {
           <div className="px-6 py-2.5 rounded-2xl bg-white text-[var(--primary)] text-center font-mono font-black text-2xl tracking-widest shadow-inner">
             {order.delivery_otp}
           </div>
+          <button
+            type="button"
+            onClick={handleRegenerateOtp}
+            disabled={regenerating}
+            className="text-xs font-bold underline text-white/90 cursor-pointer disabled:opacity-50"
+          >
+            Regenerate OTP
+          </button>
         </div>
+      )}
+
+      {paymentStatus && (
+        <p className="text-xs text-gray-500">
+          Payment status: <span className="font-bold text-gray-800">{paymentStatus}</span>
+        </p>
       )}
 
       {/* Item Details Card */}

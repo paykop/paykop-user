@@ -27,11 +27,31 @@ import {
   AgentSellerSummary,
   AgentCreateSellerRequest,
   AgentUpdateSellerProfileRequest,
-  AgentGrantTrialResponse,
   AgentBusinessLocationRequest,
   AgentBusinessLocationResponse,
   AgentCreateProductRequest,
   AgentCreateServiceRequest,
+  Review,
+  SearchResponse,
+  SearchProductsResponse,
+  SearchParams,
+  PresignRequest,
+  PresignResponse,
+  KycRequirement,
+  KycSubmission,
+  KycUpsertRequest,
+  SubscribeRequest,
+  SubscribeResponse,
+  SubscriptionHistoryItem,
+  AgentOnboardingStatus,
+  ProviderServiceInput,
+  CreateReviewRequest,
+  SupportTicket,
+  CreateSupportTicketRequest,
+  SupportMessage,
+  BloodDonorProfile,
+  RaiseBloodRequestInput,
+  BookingStatusResponse,
 } from "@/types";
 
 export const api = {
@@ -207,15 +227,17 @@ export const api = {
   },
 
   search: {
-    query: (q: string) =>
-      apiClient<{ products: Product[]; services: ServiceItem[] }>("/search", {
-        params: { q },
+    query: (params: SearchParams | string) => {
+      const p = typeof params === "string" ? { q: params } : params;
+      return apiClient<SearchResponse>("/search", {
+        params: p as Record<string, string | number | boolean | null | undefined>,
         skipAuth: true,
-      }),
+      });
+    },
 
-    suggestions: (q: string) =>
-      apiClient<{ suggestions: string[] }>("/search/suggestions", {
-        params: { q },
+    products: (params?: SearchParams) =>
+      apiClient<SearchProductsResponse>("/search/products", {
+        params: params as Record<string, string | number | boolean | null | undefined> | undefined,
         skipAuth: true,
       }),
   },
@@ -294,6 +316,12 @@ export const api = {
       apiClient<{ message: string }>(`/buyer/orders/${id}/cancel`, {
         method: "POST",
       }),
+    regenerateOtp: (id: number | string) =>
+      apiClient<{ delivery_otp: string }>(`/buyer/orders/${id}/regenerate-otp`, {
+        method: "POST",
+      }),
+    getPayment: (id: number | string) =>
+      apiClient<PaymentIntentResponse>(`/buyer/orders/${id}/payment`),
   },
 
   payments: {
@@ -364,6 +392,12 @@ export const api = {
 
     getBuyerBookings: () => apiClient<Booking[]>("/buyer/bookings"),
     getBookingById: (id: number | string) => apiClient<Booking>(`/bookings/${id}`),
+    getBookingStatus: (id: number | string) =>
+      apiClient<BookingStatusResponse>(`/bookings/${id}/status`),
+    regenerateBookingOtp: (id: number | string) =>
+      apiClient<{ verification_otp: string }>(`/bookings/${id}/regenerate-otp`, {
+        method: "POST",
+      }),
   },
 
   // ── Donations & Blood ────────────────────────────────────────────────────
@@ -392,10 +426,49 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data),
       }),
+
+    getMyDonorProfile: () => apiClient<BloodDonorProfile>("/donations/blood/donors/me"),
+    updateMyDonorProfile: (data: Partial<BloodDonorProfile>) =>
+      apiClient<BloodDonorProfile>("/donations/blood/donors/me", {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    toggleDonorAvailability: (isAvailable: boolean) =>
+      apiClient<{ message: string }>("/donations/blood/donors/me/availability", {
+        method: "PATCH",
+        body: JSON.stringify({ is_available: isAvailable }),
+      }),
+    deleteMyDonorProfile: () =>
+      apiClient<{ message: string }>("/donations/blood/donors/me", {
+        method: "DELETE",
+      }),
+
+    raiseBloodRequest: (data: RaiseBloodRequestInput) =>
+      apiClient<BloodRequest>("/donations/blood", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    raiseCampaign: (data: {
+      title: string;
+      description: string;
+      target_amount: number;
+      beneficiary_name?: string;
+      image_url?: string;
+    }) =>
+      apiClient<DonationCampaign>("/donations/campaigns", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
   },
 
   // ── Chat ─────────────────────────────────────────────────────────────────
   chat: {
+    createConversation: (participantId: string) =>
+      apiClient<Conversation>("/chat/conversations", {
+        method: "POST",
+        body: JSON.stringify({ participant_id: participantId }),
+      }),
     getConversations: () => apiClient<Conversation[]>("/chat/conversations"),
     getMessages: (conversationId: number | string) =>
       apiClient<ChatMessage[]>(`/chat/conversations/${conversationId}/messages`),
@@ -404,12 +477,26 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ content }),
       }),
+    markAsRead: (conversationId: number | string) =>
+      apiClient<{ message: string }>(`/chat/conversations/${conversationId}/read`, {
+        method: "PUT",
+      }),
   },
 
   // ── Subscriptions & Seller ───────────────────────────────────────────────
   subscriptions: {
     getPlans: () => apiClient<SubscriptionPlan[]>("/subscriptions/plans"),
     getMySubscription: () => apiClient<SellerSubscription>("/subscriptions/me"),
+    getHistory: () => apiClient<SubscriptionHistoryItem[]>("/subscriptions/history"),
+    subscribe: (data: SubscribeRequest) =>
+      apiClient<SubscribeResponse>("/subscriptions/subscribe", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    cancel: () =>
+      apiClient<{ message: string }>("/subscriptions/cancel", {
+        method: "POST",
+      }),
   },
 
   seller: {
@@ -441,6 +528,93 @@ export const api = {
       apiClient<{ message: string }>(`/provider/bookings/${bookingId}/status`, {
         method: "PUT",
         body: JSON.stringify({ status }),
+      }),
+    listOrders: () => apiClient<Order[]>("/seller/orders"),
+    getOrderById: (id: number | string) => apiClient<Order>(`/seller/orders/${id}`),
+    verifyCod: (orderId: number | string, otp: string) =>
+      apiClient<{ message: string }>(`/seller/orders/${orderId}/verify-cod`, {
+        method: "POST",
+        body: JSON.stringify({ otp }),
+      }),
+    listServiceCategories: () =>
+      apiClient<ServiceCategory[]>("/seller/service-categories"),
+  },
+
+  provider: {
+    createService: (data: ProviderServiceInput) =>
+      apiClient<ServiceItem>("/provider/services", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    updateService: (id: number | string, data: Partial<ProviderServiceInput>) =>
+      apiClient<ServiceItem>(`/provider/services/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    deleteService: (id: number | string) =>
+      apiClient<{ message: string }>(`/provider/services/${id}`, {
+        method: "DELETE",
+      }),
+  },
+
+  storage: {
+    getPresignedUrl: (data: PresignRequest) =>
+      apiClient<PresignResponse>("/storage/presigned-url", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+  },
+
+  kyc: {
+    getRequirements: (categoryKind: string, categoryId: number) =>
+      apiClient<{ requirements: KycRequirement[] }>("/sellers/me/kyc/requirements", {
+        params: { kind: categoryKind, category_id: categoryId },
+      }),
+    getMyKyc: () => apiClient<KycSubmission>("/sellers/me/kyc"),
+    upsertDraft: (data: KycUpsertRequest) =>
+      apiClient<KycSubmission>("/sellers/me/kyc", {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    submit: () =>
+      apiClient<KycSubmission>("/sellers/me/kyc/submit", {
+        method: "POST",
+      }),
+  },
+
+  reviews: {
+    listProductReviews: (productId: number | string) =>
+      apiClient<Review[]>(`/products/${productId}/reviews`, { skipAuth: true }),
+    createProductReview: (productId: number | string, data: CreateReviewRequest) =>
+      apiClient<Review>(`/products/${productId}/reviews`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    listServiceReviews: (serviceId: number | string) =>
+      apiClient<Review[]>(`/services/${serviceId}/reviews`, { skipAuth: true }),
+    createServiceReview: (serviceId: number | string, data: CreateReviewRequest) =>
+      apiClient<Review>(`/services/${serviceId}/reviews`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+  },
+
+  support: {
+    createTicket: (data: CreateSupportTicketRequest) =>
+      apiClient<{ ticket: SupportTicket }>("/support/tickets", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    listTickets: () => apiClient<{ tickets: SupportTicket[]; total: number }>("/support/tickets"),
+    getTicket: (id: number | string) => apiClient<SupportTicket>(`/support/tickets/${id}`),
+    addMessage: (id: number | string, message: string) =>
+      apiClient<SupportMessage>(`/support/tickets/${id}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ message }),
+      }),
+    closeTicket: (id: number | string) =>
+      apiClient<{ status: string }>(`/support/tickets/${id}/close`, {
+        method: "PATCH",
       }),
   },
 
@@ -499,8 +673,46 @@ export const api = {
         body: JSON.stringify(data),
       }),
 
-    grantTrial: (sellerId: string) =>
-      apiClient<AgentGrantTrialResponse>(`/agent/sellers/${sellerId}/subscription/grant-trial`, {
+    getOnboardingStatus: (sellerId: string) =>
+      apiClient<AgentOnboardingStatus>(`/agent/sellers/${sellerId}/onboarding-status`),
+
+    getSellerSubscription: (sellerId: string) =>
+      apiClient<SellerSubscription>(`/agent/sellers/${sellerId}/subscription`),
+
+    subscribeSeller: (sellerId: string, planId: number) =>
+      apiClient<SubscribeResponse>(`/agent/sellers/${sellerId}/subscription/subscribe`, {
+        method: "POST",
+        body: JSON.stringify({ plan_id: planId }),
+      }),
+
+    subscribeSellerIntent: (sellerId: string, planId: number) =>
+      apiClient<SubscribeResponse>(`/agent/sellers/${sellerId}/subscription/intent`, {
+        method: "POST",
+        body: JSON.stringify({ plan_id: planId }),
+      }),
+
+    getSellerServiceCategories: (sellerId: string) =>
+      apiClient<{ categories: ServiceCategory[] }>(
+        `/agent/sellers/${sellerId}/service-categories`
+      ),
+
+    getSellerKyc: (sellerId: string) =>
+      apiClient<KycSubmission>(`/agent/sellers/${sellerId}/kyc`),
+
+    getSellerKycPresignedUrl: (sellerId: string, data: PresignRequest) =>
+      apiClient<PresignResponse>(`/agent/sellers/${sellerId}/kyc/presigned-url`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    upsertSellerKyc: (sellerId: string, data: KycUpsertRequest) =>
+      apiClient<KycSubmission>(`/agent/sellers/${sellerId}/kyc`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+
+    submitSellerKyc: (sellerId: string) =>
+      apiClient<KycSubmission>(`/agent/sellers/${sellerId}/kyc/submit`, {
         method: "POST",
       }),
   },

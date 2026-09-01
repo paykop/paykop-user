@@ -25,4 +25,15 @@ test.describe("Paykop storefront smoke", () => {
     await page.goto("/products");
     await expect(page.locator("body")).toBeVisible();
   });
+
+  test("search page loads", async ({ page }) => {
+    await page.goto("/search?q=test");
+    await expect(page.locator("body")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /search/i })).toBeVisible();
+  });
+
+  test("seller kyc redirects unauthenticated users", async ({ page }) => {
+    await page.goto("/seller/kyc");
+    await expect(page).toHaveURL(/\/login/);
+  });
 });

@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api/endpoints";
 import { session } from "@/lib/auth/session";
-import { SubscriptionPlan, User } from "@/types";
+import { SellerSubscription, SubscriptionHistoryItem, SubscriptionPlan, User } from "@/types";
 import { formatPaise } from "@/lib/money";
 import { RazorpayCheckout } from "@/components/checkout/RazorpayCheckout";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -25,6 +25,18 @@ export default function SellerPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [subscriptionSuccess, setSubscriptionSuccess] = useState(false);
+  const [activeSub, setActiveSub] = useState<SellerSubscription | null>(null);
+  const [subHistory, setSubHistory] = useState<SubscriptionHistoryItem[]>([]);
+  const [cancelling, setCancelling] = useState(false);
+
+  const loadSubscriptionData = () =>
+    Promise.all([
+      api.subscriptions.getMySubscription().catch(() => null),
+      api.subscriptions.getHistory().catch(() => []),
+    ]).then(([sub, history]) => {
+      setActiveSub(sub);
+      setSubHistory(Array.isArray(history) ? history : []);
+    });
 
   useEffect(() => {
     if (!session.isAuthenticated()) return;
@@ -40,6 +52,7 @@ export default function SellerPage() {
         toast.error("Failed to load subscription plans");
         return [];
       }),
+      loadSubscriptionData(),
     ])
       .then(([me, planData]) => {
         if (me) {
@@ -50,6 +63,23 @@ export default function SellerPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const handleCancelSubscription = async () => {
+    if (!confirm("Cancel your active seller subscription?")) return;
+    setCancelling(true);
+    try {
+      await api.subscriptions.cancel();
+      toast.success("Subscription cancelled");
+      await loadSubscriptionData();
+      const me = await api.auth.getMe();
+      setUser(me);
+      session.setUser(me);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to cancel subscription");
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   if (!session.isAuthenticated()) {
     return (
@@ -112,7 +142,10 @@ export default function SellerPage() {
 
           {isSeller && !kycVerified && (
             <p className="text-xs text-amber-100 bg-white/10 border border-white/15 rounded-xl px-3 py-2">
-              Complete KYC verification before publishing new product listings. You can still view existing inventory.
+              Complete KYC verification before publishing new product listings.{" "}
+              <Link href="/seller/kyc" className="font-bold underline text-white">
+                Complete KYC
+              </Link>
             </p>
           )}
 
@@ -126,11 +159,31 @@ export default function SellerPage() {
                 <span>Manage Products</span>
               </Link>
               <Link
+                href="/seller/services"
+                className="px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20"
+              >
+                Manage Services
+              </Link>
+              <Link
                 href="/seller/bookings"
                 className="px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20"
               >
-                <span>Provider Bookings</span>
+                Provider Bookings
               </Link>
+              <Link
+                href="/seller/orders"
+                className="px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20"
+              >
+                Orders
+              </Link>
+              {!kycVerified && (
+                <Link
+                  href="/seller/kyc"
+                  className="px-6 py-3 rounded-full bg-amber-400 text-amber-950 font-bold text-xs"
+                >
+                  Complete KYC
+                </Link>
+              )}
             </div>
           )}
         </div>
@@ -190,6 +243,56 @@ export default function SellerPage() {
             </div>
             <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-[var(--primary)]" />
           </Link>
+        </div>
+      )}
+
+      {/* Active subscription */}
+      {activeSub && (
+        <div className="shopcart-card p-6 bg-white space-y-4">
+          <h2 className="text-lg font-black text-gray-900">Your subscription</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <p className="font-bold text-gray-900">
+                {typeof activeSub.plan === "string" ? activeSub.plan : activeSub.plan?.name}
+                {activeSub.is_trial && (
+                  <span className="ml-2 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
+                    Trial
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-gray-500">
+                Active since {new Date(activeSub.starts_at).toLocaleDateString()}
+                {activeSub.expires_at &&
+                  ` · Expires ${new Date(activeSub.expires_at).toLocaleDateString()}`}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleCancelSubscription}
+              disabled={cancelling}
+              className="px-4 py-2 rounded-full border border-red-200 text-red-700 text-xs font-bold disabled:opacity-50 cursor-pointer"
+            >
+              {cancelling ? "Cancelling…" : "Cancel subscription"}
+            </button>
+          </div>
+          {subHistory.length > 0 && (
+            <div className="pt-4 border-t border-gray-100 space-y-2">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">History</h3>
+              <ul className="space-y-1.5">
+                {subHistory.map((item) => (
+                  <li key={item.id} className="text-xs text-gray-600 flex justify-between gap-2">
+                    <span>
+                      {item.plan} · {item.status}
+                      {item.is_trial && " (trial)"}
+                    </span>
+                    <span className="text-gray-400 shrink-0">
+                      {new Date(item.starts_at).toLocaleDateString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
@@ -267,7 +370,10 @@ export default function SellerPage() {
                   subscriptionId={plan.id}
                   amountPaise={plan.price}
                   title={`Subscription: ${plan.name}`}
-                  onSuccess={() => setSubscriptionSuccess(true)}
+                  onSuccess={() => {
+                    setSubscriptionSuccess(true);
+                    void loadSubscriptionData();
+                  }}
                   buttonText={`Subscribe to ${plan.name}`}
                   buttonClassName="w-full py-3 px-4 rounded-xl shopcart-btn-primary font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
                 />

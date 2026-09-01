@@ -7,6 +7,7 @@ import { ChevronRight, Loader2, Package } from "lucide-react";
 import { api } from "@/lib/api/endpoints";
 import { ProductCategory } from "@/types";
 import { rupeesToPaise } from "@/lib/money";
+import { uploadViaPresignedUrl } from "@/lib/upload/presignedUpload";
 import { AgentGate } from "@/components/agent/AgentGate";
 
 function CreateProductContent() {
@@ -23,6 +24,7 @@ function CreateProductContent() {
   const [priceRupees, setPriceRupees] = useState("");
   const [stock, setStock] = useState("10");
   const [categoryName, setCategoryName] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState("");
 
   useEffect(() => {
@@ -43,9 +45,15 @@ function CreateProductContent() {
       setErrorMsg("Title, price, and category are required.");
       return;
     }
-    const imgs = imageUrl.trim() ? [imageUrl.trim()] : [];
+    const imgs: string[] = [];
+    if (imageFile) {
+      const { publicUrl } = await uploadViaPresignedUrl(imageFile, "product");
+      imgs.push(publicUrl);
+    } else if (imageUrl.trim()) {
+      imgs.push(imageUrl.trim());
+    }
     if (imgs.length === 0) {
-      setErrorMsg("Please provide a product image URL.");
+      setErrorMsg("Please upload a product image or provide an image URL.");
       return;
     }
 
@@ -156,13 +164,19 @@ function CreateProductContent() {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Image URL</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Product image</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+              className="w-full text-xs"
+            />
+            <p className="text-[10px] text-gray-400 mt-1">Or paste an image URL below</p>
             <input
               value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}
               placeholder="https://..."
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
-              required
+              className="w-full mt-2 px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
             />
           </div>
           <button

@@ -445,3 +445,252 @@ export interface AgentCreateServiceRequest {
   address: string;
   images?: string[];
 }
+
+// ── Search (federated) ─────────────────────────────────────────────────────
+
+export type SearchResultType =
+  | "product"
+  | "service"
+  | "donation_campaign"
+  | "blood_request"
+  | "blood_donor"
+  | "user";
+
+export interface SearchResult {
+  type: SearchResultType;
+  id: number | string;
+  title: string;
+  subtitle: string;
+  score: number;
+}
+
+export interface SearchResponse {
+  results: SearchResult[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface SearchProductsResponse {
+  products: Product[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface SearchParams {
+  q?: string;
+  type?: "product" | "service" | "donation" | "user" | string;
+  category?: string;
+  min_price?: number;
+  max_price?: number;
+  location?: string;
+  sort?: "price_asc" | "price_desc" | string;
+  page?: number;
+  limit?: number;
+}
+
+// ── Storage ────────────────────────────────────────────────────────────────
+
+export interface PresignRequest {
+  file_name: string;
+  content_type: string;
+  size?: number;
+  purpose?: string;
+}
+
+export interface PresignResponse {
+  upload_url: string;
+  public_url: string;
+  file_url: string;
+  key: string;
+}
+
+// ── KYC ────────────────────────────────────────────────────────────────────
+
+export interface KycRequirement {
+  doc_type: string;
+  required: boolean;
+  label: string;
+}
+
+export interface KycDocumentInput {
+  doc_type: string;
+  file_url?: string;
+  file_key: string;
+  content_type?: string;
+}
+
+export interface KycDocumentItem {
+  doc_type: string;
+  file_url?: string;
+  file_key: string;
+  content_type?: string;
+  uploaded_at?: string;
+}
+
+export interface KycSubmission {
+  id?: number;
+  seller_user_id?: string;
+  status: string;
+  category_kind?: string;
+  primary_category_id?: number;
+  primary_category_name?: string;
+  gstin?: string;
+  pan?: string;
+  rejection_reason?: string;
+  documents?: KycDocumentItem[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface KycUpsertRequest {
+  category_kind: string;
+  primary_category_id: number;
+  gstin?: string;
+  pan?: string;
+  documents?: KycDocumentInput[];
+}
+
+// ── Subscriptions (extended) ─────────────────────────────────────────────────
+
+export interface SubscribeRequest {
+  plan_id: number;
+}
+
+export interface SubscribeResponse {
+  mode: "activated" | "payment_intent" | string;
+  subscription?: {
+    id: number;
+    user_id: string;
+    plan: string;
+    status: string;
+    starts_at: string;
+    expires_at?: string;
+    is_trial?: boolean;
+  };
+  payment?: PaymentIntentResponse;
+}
+
+export interface SubscriptionHistoryItem {
+  id: number;
+  plan: string;
+  status: string;
+  starts_at: string;
+  expires_at?: string;
+  is_trial?: boolean;
+}
+
+// ── Agent (extended) ─────────────────────────────────────────────────────
+
+export interface AgentOnboardingStatus extends AgentSellerSummary {
+  subscription?: SellerSubscription;
+  subscription_status?: string;
+  commercial_access_status?: string;
+  seller_ready_missing?: string[];
+  is_seller_ready?: boolean;
+  next_onboarding_step?: string;
+}
+
+export type AgentSubscribeResponse = SubscribeResponse;
+
+// ── Provider services ────────────────────────────────────────────────────────
+
+export interface ProviderServiceInput {
+  category_id: number;
+  title: string;
+  description?: string;
+  fees: number;
+  schedule_info?: string;
+  operating_hours?: string;
+  latitude?: number;
+  longitude?: number;
+  address: string;
+  images?: string[];
+}
+
+// ── Reviews ──────────────────────────────────────────────────────────────────
+
+export interface CreateReviewRequest {
+  rating: number;
+  comment: string;
+}
+
+// ── Support tickets ──────────────────────────────────────────────────────────
+
+export interface SupportAttachment {
+  file_key: string;
+  file_url: string;
+}
+
+export interface SupportMessage {
+  id: number;
+  author_user_id: string;
+  message: string;
+  created_at: string;
+  attachments?: SupportAttachment[];
+}
+
+export interface SupportTicket {
+  id: number;
+  ticket_number: string;
+  subject: string;
+  category: string;
+  description?: string;
+  status: string;
+  priority: string;
+  user_id: string;
+  order_id?: number;
+  created_at: string;
+  updated_at: string;
+  attachments?: SupportAttachment[];
+  messages?: SupportMessage[];
+}
+
+export interface CreateSupportTicketRequest {
+  subject: string;
+  category: string;
+  description: string;
+  priority?: string;
+  order_id?: number;
+  attachments?: SupportAttachment[];
+}
+
+// ── Blood (extended) ─────────────────────────────────────────────────────────
+
+export interface BloodDonorProfile {
+  id: number;
+  donor_name: string;
+  blood_type: string;
+  phone: string;
+  address?: string;
+  city?: string;
+  is_available?: boolean;
+  notes?: string;
+}
+
+export interface RaiseBloodRequestInput {
+  patient_name: string;
+  blood_type: string;
+  units_needed: number;
+  hospital: string;
+  contact_phone: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  urgent?: boolean;
+  notes?: string;
+}
+
+// ── Chat (extended) ──────────────────────────────────────────────────────────
+
+export interface CreateConversationRequest {
+  participant_id: string;
+}
+
+export interface BookingStatusResponse {
+  id: number;
+  status: string;
+  booking_time?: string;
+  verification_otp?: string;
+}

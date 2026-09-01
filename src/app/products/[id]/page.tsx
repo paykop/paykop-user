@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { MediaThumb } from "@/components/ui/MediaThumb";
+import { ReviewsSection } from "@/components/reviews/ReviewsSection";
 import Link from "next/link";
 import {
   Star,
@@ -303,49 +304,11 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {/* Customer Reviews Section */}
-      <section className="pt-8 border-t border-gray-200 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Verified Customer Reviews</h2>
-            <p className="text-xs text-gray-500">Real feedback from verified local buyers</p>
-          </div>
-        </div>
-
-        {product.reviews && product.reviews.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {product.reviews.map((rev) => (
-              <div key={rev.id} className="shopcart-card p-4 bg-white space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-3.5 h-3.5 ${
-                          i < rev.rating
-                            ? "fill-[#ffc220] text-[#ffc220]"
-                            : "text-gray-200"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-[10px] text-gray-400">
-                    {new Date(rev.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-700 leading-relaxed">{rev.comment}</p>
-                <div className="text-[11px] font-semibold text-gray-500">
-                  {rev.user_email || "Verified Buyer"}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="shopcart-card p-6 bg-white text-center text-xs text-gray-500">
-            No customer reviews yet. Be the first to order and review this product!
-          </div>
-        )}
-      </section>
+      <ReviewsSection
+        targetType="product"
+        targetId={product.id}
+        embedded={product.reviews}
+      />
     </div>
   );
 }

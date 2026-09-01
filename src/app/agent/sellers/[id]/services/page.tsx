@@ -8,6 +8,7 @@ import { api } from "@/lib/api/endpoints";
 import { ServiceCategory } from "@/types";
 import { useLocationStore } from "@/lib/location/store";
 import { rupeesToPaise } from "@/lib/money";
+import { uploadViaPresignedUrl } from "@/lib/upload/presignedUpload";
 import { AgentGate } from "@/components/agent/AgentGate";
 
 function CreateServiceContent() {
@@ -31,19 +32,29 @@ function CreateServiceContent() {
   const [scheduleInfo, setScheduleInfo] = useState(
     JSON.stringify({ mon: "9:00-18:00", tue: "9:00-18:00", wed: "9:00-18:00", thu: "9:00-18:00", fri: "9:00-18:00" })
   );
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState("");
 
   useEffect(() => {
-    api.services
-      .listCategories()
-      .then((data) => {
-        const list = Array.isArray(data) ? data : [];
+    api.agent
+      .getSellerServiceCategories(sellerId)
+      .then((res) => {
+        const list = res.categories || [];
         setCategories(list);
         if (list[0]?.id) setCategoryId(list[0].id);
       })
-      .catch(() => setCategories([]))
+      .catch(() => {
+        api.services
+          .listCategories()
+          .then((data) => {
+            const list = Array.isArray(data) ? data : [];
+            setCategories(list);
+            if (list[0]?.id) setCategoryId(list[0].id);
+          })
+          .catch(() => setCategories([]));
+      })
       .finally(() => setLoadingCats(false));
-  }, []);
+  }, [sellerId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +74,13 @@ function CreateServiceContent() {
     try {
       const latNum = lat ? Number(lat) : undefined;
       const lngNum = lng ? Number(lng) : undefined;
+      let images: string[] | undefined;
+      if (imageFile) {
+        const { publicUrl } = await uploadViaPresignedUrl(imageFile, "product");
+        images = [publicUrl];
+      } else if (imageUrl.trim()) {
+        images = [imageUrl.trim()];
+      }
       await api.agent.createService(sellerId, {
         category_id: categoryId,
         title: title.trim(),
@@ -72,7 +90,7 @@ function CreateServiceContent() {
         address: address.trim(),
         latitude: latNum != null && !Number.isNaN(latNum) ? latNum : undefined,
         longitude: lngNum != null && !Number.isNaN(lngNum) ? lngNum : undefined,
-        images: imageUrl.trim() ? [imageUrl.trim()] : undefined,
+        images,
       });
       router.push(`/agent/sellers/${sellerId}`);
     } catch (err: unknown) {
@@ -197,11 +215,18 @@ function CreateServiceContent() {
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Image URL (optional)</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Service image (optional)</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+              className="w-full text-xs"
+            />
             <input
               value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
+              placeholder="Or image URL"
+              className="w-full mt-2 px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
             />
           </div>
           <button

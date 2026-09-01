@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Home,
   Building,
+  Edit2,
 } from "lucide-react";
 import { api } from "@/lib/api/endpoints";
 import { session } from "@/lib/auth/session";
@@ -22,6 +23,7 @@ export default function AddressesPage() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Form State
   const [label, setLabel] = useState("Home");
@@ -50,11 +52,32 @@ export default function AddressesPage() {
     loadAddresses();
   }, []);
 
+  const resetForm = () => {
+    setLabel("Home");
+    setAddressLine("");
+    setLandmark("");
+    setCity(cityName || "Hyderabad");
+    setPincode("500001");
+    setIsDefault(false);
+    setEditingId(null);
+  };
+
+  const startEdit = (addr: Address) => {
+    setEditingId(addr.id);
+    setLabel(addr.label);
+    setAddressLine(addr.address_line);
+    setLandmark(addr.landmark || "");
+    setCity(addr.city);
+    setPincode(addr.pincode);
+    setIsDefault(addr.is_default);
+    setShowAddForm(true);
+  };
+
   const handleCreateAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.addresses.create({
+      const payload = {
         label,
         address_line: addressLine,
         landmark: landmark || undefined,
@@ -64,13 +87,19 @@ export default function AddressesPage() {
         lat: latitude || 17.385,
         lng: longitude || 78.4867,
         is_default: isDefault,
-      });
+      };
+      if (editingId) {
+        await api.addresses.update(editingId, payload);
+        toast.success("Address updated");
+      } else {
+        await api.addresses.create(payload);
+        toast.success("Address saved");
+      }
       setShowAddForm(false);
-      setAddressLine("");
-      setLandmark("");
+      resetForm();
       fetchAddresses({ showLoading: true });
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to create address");
+      toast.error(err instanceof Error ? err.message : "Failed to save address");
     } finally {
       setSaving(false);
     }
@@ -122,7 +151,15 @@ export default function AddressesPage() {
         </div>
 
         <button
-          onClick={() => setShowAddForm(!showAddForm)}
+          onClick={() => {
+            if (showAddForm) {
+              setShowAddForm(false);
+              resetForm();
+            } else {
+              resetForm();
+              setShowAddForm(true);
+            }
+          }}
           className="px-4 py-2.5 rounded-full shopcart-btn-primary text-xs font-bold flex items-center gap-1.5 self-start cursor-pointer shadow-sm"
         >
           <Plus className="w-4 h-4 text-[var(--accent-green)]" />
@@ -136,7 +173,9 @@ export default function AddressesPage() {
           onSubmit={handleCreateAddress}
           className="shopcart-card p-6 bg-white border border-[var(--primary)]/20 space-y-4 animate-fade-in"
         >
-          <h3 className="font-bold text-sm text-gray-900">Add New Address</h3>
+          <h3 className="font-bold text-sm text-gray-900">
+            {editingId ? "Edit Address" : "Add New Address"}
+          </h3>
 
           <div className="flex items-center gap-2">
             {["Home", "Work", "Other"].map((lbl) => (
@@ -224,11 +263,14 @@ export default function AddressesPage() {
               className="px-5 py-2.5 rounded-full shopcart-btn-primary text-xs font-bold flex items-center gap-1.5 cursor-pointer"
             >
               {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              <span>Save Address</span>
+              <span>{editingId ? "Update Address" : "Save Address"}</span>
             </button>
             <button
               type="button"
-              onClick={() => setShowAddForm(false)}
+              onClick={() => {
+                setShowAddForm(false);
+                resetForm();
+              }}
               className="px-4 py-2 text-xs font-semibold text-gray-500 hover:text-gray-900"
             >
               Cancel
@@ -285,16 +327,25 @@ export default function AddressesPage() {
               </div>
 
               <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
-                {!addr.is_default ? (
+                <div className="flex items-center gap-3">
+                  {!addr.is_default ? (
+                    <button
+                      onClick={() => handleSetDefault(addr.id)}
+                      className="text-xs font-bold text-[var(--primary)] hover:underline cursor-pointer"
+                    >
+                      Set as Default
+                    </button>
+                  ) : (
+                    <span className="text-[11px] text-gray-400 font-medium">Active Address</span>
+                  )}
                   <button
-                    onClick={() => handleSetDefault(addr.id)}
-                    className="text-xs font-bold text-[var(--primary)] hover:underline cursor-pointer"
+                    onClick={() => startEdit(addr)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-[var(--primary)] hover:bg-emerald-50 transition-colors cursor-pointer"
+                    title="Edit Address"
                   >
-                    Set as Default
+                    <Edit2 className="w-4 h-4" />
                   </button>
-                ) : (
-                  <span className="text-[11px] text-gray-400 font-medium">Active Address</span>
-                )}
+                </div>
 
                 <button
                   onClick={() => handleDelete(addr.id)}

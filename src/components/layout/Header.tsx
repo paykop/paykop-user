@@ -32,6 +32,8 @@ import { LoginModal } from "@/components/auth/LoginModal";
 import { LocationModal } from "@/components/location/LocationModal";
 import { useCart, useCategories } from "@/lib/queries/hooks";
 import { queryKeys } from "@/lib/queries/keys";
+import { SearchResult } from "@/types";
+import { highlightQuery, searchResultHref, searchResultLabel } from "@/lib/search/routes";
 
 export function Header() {
   const router = useRouter();
@@ -40,7 +42,8 @@ export function Header() {
   const user = useSessionUser();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
@@ -74,21 +77,25 @@ export function Header() {
   }, [queryClient]);
 
   useEffect(() => {
-    if (searchQuery.trim().length < 2) return;
+    const q = searchQuery.trim();
+    if (q.length < 1) return;
 
     const timer = setTimeout(async () => {
+      setSearchLoading(true);
       try {
-        const res = await api.search.suggestions(searchQuery);
-        setSuggestions(res.suggestions || []);
+        const res = await api.search.query({ q, limit: 8 });
+        setSearchResults(res.results || []);
       } catch {
-        setSuggestions([]);
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
       }
-    }, 250);
+    }, 200);
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const displaySuggestions = searchQuery.trim().length < 2 ? [] : suggestions;
+  const showAutocomplete = showSuggestions && searchQuery.trim().length >= 1;
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -196,11 +203,13 @@ export function Header() {
               <form onSubmit={handleSearchSubmit} className="relative">
                 <input
                   type="text"
-                  placeholder="Search..."
+                  placeholder="Search products, services, donations…"
                   value={searchQuery}
                   onChange={(e) => {
-                    setSearchQuery(e.target.value);
+                    const value = e.target.value;
+                    setSearchQuery(value);
                     setShowSuggestions(true);
+                    if (!value.trim()) setSearchResults([]);
                   }}
                   onFocus={() => setShowSuggestions(true)}
                   className="w-full min-w-0 pl-3 sm:pl-5 pr-10 sm:pr-12 py-2 sm:py-3 bg-[var(--surface-muted)] border border-transparent rounded-full text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary)]/10"
@@ -213,22 +222,42 @@ export function Header() {
                 </button>
               </form>
 
-              {showSuggestions && displaySuggestions.length > 0 && (
+              {showAutocomplete && (searchLoading || searchResults.length > 0) && (
                 <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50">
-                  {displaySuggestions.map((item) => (
-                    <button
-                      key={item}
-                      onClick={() => {
-                        setSearchQuery(item);
-                        setShowSuggestions(false);
-                        router.push(`/search?q=${encodeURIComponent(item)}`);
-                      }}
-                      className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-[var(--primary-subtle)] flex items-center gap-2.5 cursor-pointer"
-                    >
-                      <Search className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{item}</span>
-                    </button>
-                  ))}
+                  {searchLoading && (
+                    <p className="px-4 py-3 text-xs text-slate-400">Searching…</p>
+                  )}
+                  {!searchLoading &&
+                    searchResults.map((item) => {
+                      const parts = highlightQuery(item.title, searchQuery.trim());
+                      return (
+                        <button
+                          key={`${item.type}-${item.id}`}
+                          type="button"
+                          onClick={() => {
+                            setShowSuggestions(false);
+                            router.push(searchResultHref(item));
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-[var(--primary-subtle)] flex items-start gap-2.5 cursor-pointer"
+                        >
+                          <Search className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
+                          <div className="min-w-0">
+                            <span className="font-semibold text-slate-900">
+                              {parts.before}
+                              {parts.match && (
+                                <mark className="bg-amber-100 text-inherit rounded px-0.5">
+                                  {parts.match}
+                                </mark>
+                              )}
+                              {parts.after}
+                            </span>
+                            <span className="block text-[10px] text-slate-400 mt-0.5">
+                              {searchResultLabel(item.type)} · {item.subtitle}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
                 </div>
               )}
             </div>

@@ -13,6 +13,7 @@ import {
   Loader2,
   Wrench,
   Briefcase,
+  MessageSquare,
 } from "lucide-react";
 import { api } from "@/lib/api/endpoints";
 import { session } from "@/lib/auth/session";
@@ -131,7 +132,7 @@ export default function AccountPage() {
       </div>
 
       {/* Quick Navigation Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <Link
           href="/account/orders"
           className="shopcart-card p-5 bg-white hover:border-[var(--primary)] transition-all space-y-2 group"
@@ -174,6 +175,17 @@ export default function AccountPage() {
           </div>
           <div className="font-bold text-sm text-gray-900">Addresses</div>
           <div className="text-xs text-gray-400">Saved delivery locations</div>
+        </Link>
+
+        <Link
+          href="/account/support"
+          className="shopcart-card p-5 bg-white hover:border-[var(--primary)] transition-all space-y-2 group"
+        >
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+            <MessageSquare className="w-5 h-5" />
+          </div>
+          <div className="font-bold text-sm text-gray-900">Support</div>
+          <div className="text-xs text-gray-400">Help tickets & order issues</div>
         </Link>
       </div>
 

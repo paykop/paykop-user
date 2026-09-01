@@ -75,6 +75,7 @@ export function Footer() {
               <li><Link href="/services" className="hover:text-white">Services</Link></li>
               <li><Link href="/cart" className="hover:text-white">Cart</Link></li>
               <li><Link href="/account/orders" className="hover:text-white">Orders</Link></li>
+              <li><Link href="/account/support" className="hover:text-white">Support</Link></li>
             </ul>
           </div>
 
@@ -96,7 +97,7 @@ export function Footer() {
             <ul className="space-y-2 text-sm text-white/70">
               <li><Link href="/seller" className="hover:text-white">Sell on Paykop</Link></li>
               <li><Link href="/seller/products" className="hover:text-white">Seller products</Link></li>
-              <li><Link href="/seller/bookings" className="hover:text-white">Provider bookings</Link></li>
+              <li><Link href="/seller/kyc" className="hover:text-white">Seller KYC</Link></li>
             </ul>
           </div>
         </div>

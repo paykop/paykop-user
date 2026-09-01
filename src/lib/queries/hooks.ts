@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api/endpoints";
 import { session } from "@/lib/auth/session";
 import { parseProductImages } from "@/lib/media";
-import { Product } from "@/types";
+import { SearchParams, Product } from "@/types";
 import { queryKeys } from "./keys";
 import { mapHomeFeed } from "@/lib/home/mapFeed";
 
@@ -347,11 +347,97 @@ export function useBloodRequests() {
   });
 }
 
-export function useSearch(q: string) {
+export function useSearch(params: SearchParams) {
+  const q = params.q?.trim() ?? "";
   return useQuery({
-    queryKey: queryKeys.search(q),
-    enabled: q.length >= 2,
-    queryFn: () => api.search.query(q),
+    queryKey: queryKeys.search(params as Record<string, unknown>),
+    enabled: q.length >= 1,
+    queryFn: () => api.search.query(params),
+  });
+}
+
+export function useSearchProducts(params: SearchParams) {
+  const q = params.q?.trim() ?? "";
+  return useQuery({
+    queryKey: queryKeys.searchProducts(params as Record<string, unknown>),
+    enabled: q.length >= 1,
+    queryFn: () => api.search.products(params),
+  });
+}
+
+export function useKyc() {
+  return useQuery({
+    queryKey: queryKeys.kyc,
+    enabled: session.isAuthenticated(),
+    queryFn: () => api.kyc.getMyKyc(),
+  });
+}
+
+export function useSubscription() {
+  return useQuery({
+    queryKey: queryKeys.subscription,
+    enabled: session.isAuthenticated(),
+    queryFn: () => api.subscriptions.getMySubscription(),
+  });
+}
+
+export function useSubscriptionHistory() {
+  return useQuery({
+    queryKey: queryKeys.subscriptionHistory,
+    enabled: session.isAuthenticated(),
+    queryFn: () => api.subscriptions.getHistory(),
+  });
+}
+
+export function useSellerOrders() {
+  return useQuery({
+    queryKey: queryKeys.sellerOrders,
+    enabled: session.isAuthenticated(),
+    queryFn: () => api.seller.listOrders(),
+  });
+}
+
+export function useSupportTickets() {
+  return useQuery({
+    queryKey: queryKeys.supportTickets,
+    enabled: session.isAuthenticated(),
+    queryFn: async () => {
+      const res = await api.support.listTickets();
+      return res.tickets ?? [];
+    },
+  });
+}
+
+export function useProductReviews(productId: number | string) {
+  return useQuery({
+    queryKey: queryKeys.productReviews(productId),
+    enabled: !!productId,
+    queryFn: () => api.reviews.listProductReviews(productId),
+  });
+}
+
+export function useServiceReviews(serviceId: number | string) {
+  return useQuery({
+    queryKey: queryKeys.serviceReviews(serviceId),
+    enabled: !!serviceId,
+    queryFn: () => api.reviews.listServiceReviews(serviceId),
+  });
+}
+
+export function useBooking(id: number | string) {
+  return useQuery({
+    queryKey: queryKeys.booking(id),
+    enabled: session.isAuthenticated() && !!id,
+    queryFn: () => api.services.getBookingById(id),
+  });
+}
+
+export function useBloodDonorMe(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.bloodDonorMe,
+    enabled: enabled && session.isAuthenticated(),
+    queryFn: () => api.donations.getMyDonorProfile(),
+    retry: false,
   });
 }
 

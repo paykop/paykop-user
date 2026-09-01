@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api/endpoints";
 import { session } from "@/lib/auth/session";
-import { BloodRequest } from "@/types";
+import { BloodDonorProfile, BloodRequest } from "@/types";
 import { useLocationStore } from "@/lib/location/store";
 import { toast } from "@/lib/toast";
 
@@ -24,19 +24,30 @@ const BLOOD_GROUPS = ["All", "A+", "O+", "B+", "AB+", "A-", "O-", "B-", "AB-"];
 function BloodContent() {
   const searchParams = useSearchParams();
   const highlightRequestId = searchParams.get("request_id");
-  const { cityName } = useLocationStore();
+  const { cityName, latitude, longitude } = useLocationStore();
 
   const [requests, setRequests] = useState<BloodRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedGroup, setSelectedGroup] = useState("All");
+  const [myDonorProfile, setMyDonorProfile] = useState<BloodDonorProfile | null>(null);
 
   // Donor Registration Modal state
   const [showDonorModal, setShowDonorModal] = useState(false);
   const [donorBloodType, setDonorBloodType] = useState("O+");
   const [donorPhone, setDonorPhone] = useState("");
   const [donorCity, setDonorCity] = useState(cityName || "Hyderabad");
+  const [donorNotes, setDonorNotes] = useState("");
   const [registering, setRegistering] = useState(false);
   const [donorSuccess, setDonorSuccess] = useState(false);
+
+  // Raise blood request modal
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [patientName, setPatientName] = useState("");
+  const [requestBloodType, setRequestBloodType] = useState("O+");
+  const [unitsNeeded, setUnitsNeeded] = useState("1");
+  const [hospital, setHospital] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [raisingRequest, setRaisingRequest] = useState(false);
 
   // Interest Submission state
   const [interestRequestId, setInterestRequestId] = useState<number | null>(null);
@@ -50,6 +61,13 @@ function BloodContent() {
       .then((data) => setRequests(Array.isArray(data) ? data : []))
       .catch(() => setRequests([]))
       .finally(() => setLoading(false));
+
+    if (session.isAuthenticated()) {
+      api.donations
+        .getMyDonorProfile()
+        .then(setMyDonorProfile)
+        .catch(() => setMyDonorProfile(null));
+    }
   }, []);
 
   const handleRegisterDonor = async (e: React.FormEvent) => {
@@ -64,12 +82,24 @@ function BloodContent() {
     const cleanPhone = donorPhone.startsWith("+91") ? donorPhone : `+91${donorPhone.replace(/\D/g, "")}`;
 
     try {
-      await api.donations.registerDonor({
-        blood_type: donorBloodType,
-        phone: cleanPhone,
-        city: donorCity,
-        is_available: true,
-      });
+      if (myDonorProfile) {
+        await api.donations.updateMyDonorProfile({
+          blood_type: donorBloodType,
+          phone: cleanPhone,
+          city: donorCity,
+          notes: donorNotes || undefined,
+          is_available: true,
+        });
+      } else {
+        await api.donations.registerDonor({
+          blood_type: donorBloodType,
+          phone: cleanPhone,
+          city: donorCity,
+          is_available: true,
+        });
+      }
+      const profile = await api.donations.getMyDonorProfile();
+      setMyDonorProfile(profile);
       setDonorSuccess(true);
       setTimeout(() => {
         setDonorSuccess(false);
@@ -79,6 +109,63 @@ function BloodContent() {
       toast.error(err instanceof Error ? err.message : "Failed to register donor profile");
     } finally {
       setRegistering(false);
+    }
+  };
+
+  const handleToggleAvailability = async () => {
+    if (!myDonorProfile) return;
+    try {
+      const next = !myDonorProfile.is_available;
+      await api.donations.toggleDonorAvailability(next);
+      setMyDonorProfile({ ...myDonorProfile, is_available: next });
+      toast.success(next ? "You are now available to donate" : "Marked as unavailable");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update availability");
+    }
+  };
+
+  const handleDeleteDonorProfile = async () => {
+    if (!confirm("Remove your donor profile?")) return;
+    try {
+      await api.donations.deleteMyDonorProfile();
+      setMyDonorProfile(null);
+      toast.success("Donor profile removed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to remove profile");
+    }
+  };
+
+  const handleRaiseRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session.isAuthenticated()) {
+      window.dispatchEvent(new CustomEvent("paykop_open_login"));
+      return;
+    }
+    setRaisingRequest(true);
+    try {
+      const cleanPhone = contactPhone.startsWith("+91")
+        ? contactPhone
+        : `+91${contactPhone.replace(/\D/g, "")}`;
+      const created = await api.donations.raiseBloodRequest({
+        patient_name: patientName.trim(),
+        blood_type: requestBloodType,
+        units_needed: Number(unitsNeeded) || 1,
+        hospital: hospital.trim(),
+        contact_phone: cleanPhone,
+        latitude: latitude ?? undefined,
+        longitude: longitude ?? undefined,
+        urgent: true,
+      });
+      setRequests((prev) => [created, ...prev]);
+      setShowRequestModal(false);
+      setPatientName("");
+      setHospital("");
+      setContactPhone("");
+      toast.success("Blood request posted");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to post request");
+    } finally {
+      setRaisingRequest(false);
     }
   };
 
@@ -138,10 +225,57 @@ function BloodContent() {
             className="px-6 py-3.5 rounded-full bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center gap-2 shadow-lg transition-colors cursor-pointer self-start"
           >
             <Plus className="w-4 h-4" />
-            <span>Register as a Blood Donor</span>
+            <span>{myDonorProfile ? "Update Donor Profile" : "Register as a Blood Donor"}</span>
+          </button>
+          <button
+            onClick={() => setShowRequestModal(true)}
+            className="px-6 py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-2 border border-white/20 self-start cursor-pointer"
+          >
+            <Hospital className="w-4 h-4" />
+            <span>Post Emergency Request</span>
           </button>
         </div>
       </div>
+
+      {session.isAuthenticated() && myDonorProfile && (
+        <div className="shopcart-card p-5 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold text-gray-500 uppercase">Your donor profile</p>
+            <p className="font-bold text-gray-900">
+              {myDonorProfile.blood_type} · {myDonorProfile.city}
+            </p>
+            <p className="text-xs text-gray-500">
+              {myDonorProfile.is_available ? "Available to donate" : "Currently unavailable"}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={handleToggleAvailability}
+              className="px-4 py-2 rounded-full bg-red-50 text-red-700 text-xs font-bold cursor-pointer"
+            >
+              {myDonorProfile.is_available ? "Mark unavailable" : "Mark available"}
+            </button>
+            <button
+              onClick={() => {
+                setDonorBloodType(myDonorProfile.blood_type);
+                setDonorPhone(myDonorProfile.phone.replace(/^\+91/, ""));
+                setDonorCity(myDonorProfile.city || donorCity);
+                setDonorNotes(myDonorProfile.notes || "");
+                setShowDonorModal(true);
+              }}
+              className="px-4 py-2 rounded-full border border-gray-200 text-xs font-bold cursor-pointer"
+            >
+              Edit
+            </button>
+            <button
+              onClick={handleDeleteDonorProfile}
+              className="px-4 py-2 rounded-full text-red-600 text-xs font-bold cursor-pointer"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      )}
 
       {interestSuccessMsg && (
         <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-800 flex items-center gap-2">
@@ -332,6 +466,18 @@ function BloodContent() {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    Notes (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={donorNotes}
+                    onChange={(e) => setDonorNotes(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                  />
+                </div>
+
                 <div className="flex items-center gap-2 pt-2">
                   <button
                     type="submit"
@@ -351,6 +497,74 @@ function BloodContent() {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {showRequestModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-3xl shadow-2xl border border-gray-100 p-6 space-y-4">
+            <h3 className="font-bold text-lg text-gray-900">Post emergency blood request</h3>
+            <form onSubmit={handleRaiseRequest} className="space-y-3">
+              <input
+                required
+                placeholder="Patient name *"
+                value={patientName}
+                onChange={(e) => setPatientName(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
+              />
+              <select
+                value={requestBloodType}
+                onChange={(e) => setRequestBloodType(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-bold"
+              >
+                {["A+", "O+", "B+", "AB+", "A-", "O-", "B-", "AB-"].map((bg) => (
+                  <option key={bg} value={bg}>
+                    {bg}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="number"
+                min="1"
+                required
+                placeholder="Units needed *"
+                value={unitsNeeded}
+                onChange={(e) => setUnitsNeeded(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
+              />
+              <input
+                required
+                placeholder="Hospital name *"
+                value={hospital}
+                onChange={(e) => setHospital(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
+              />
+              <input
+                required
+                maxLength={10}
+                placeholder="Contact phone *"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value.replace(/\D/g, ""))}
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
+              />
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="submit"
+                  disabled={raisingRequest}
+                  className="flex-1 py-3 rounded-full bg-red-600 text-white font-bold text-xs cursor-pointer disabled:opacity-50"
+                >
+                  {raisingRequest ? "Posting…" : "Post request"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRequestModal(false)}
+                  className="px-4 py-3 text-xs font-semibold text-gray-500"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
