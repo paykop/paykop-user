@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { Phone, Mail, ArrowRight, Loader2, CheckCircle2, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api/endpoints";
 import { session } from "@/lib/auth/session";
@@ -150,9 +151,14 @@ function LoginContent() {
     <div className="min-h-[75vh] flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md rounded-3xl shadow-xl border border-gray-100 p-8 space-y-6">
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-[var(--primary)] text-white font-black text-2xl flex items-center justify-center mx-auto shadow-md">
-            P
-          </div>
+          <Image
+            src="/brand/paykop-icon.png"
+            alt="Paykop"
+            width={48}
+            height={48}
+            className="w-12 h-12 rounded-2xl mx-auto shadow-md"
+            priority
+          />
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">
             {step === "identity"
               ? mode === "phone"

@@ -26,11 +26,12 @@ interface RazorpayInstance {
 
 interface RazorpayOptions {
   key: string;
-  amount: number;
+  amount?: number;
   currency: string;
   name: string;
   description: string;
-  order_id: string;
+  order_id?: string;
+  subscription_id?: string;
   prefill: { name: string; email: string; contact: string };
   theme: { color: string };
   handler: (response: RazorpaySuccessResponse) => void | Promise<void>;

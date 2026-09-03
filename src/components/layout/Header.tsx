@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Search,
@@ -143,9 +144,14 @@ export function Header() {
           <div className="flex items-center justify-between h-16 sm:h-20 gap-2 sm:gap-4 lg:gap-8 min-w-0">
             <div className="flex items-center gap-3 sm:gap-6 shrink-0 min-w-0">
               <Link href="/" className="flex items-center gap-2 min-w-0">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[var(--primary)] flex items-center justify-center text-white font-black text-lg sm:text-xl tracking-tight shadow-md shrink-0">
-                  P
-                </div>
+                <Image
+                  src="/brand/paykop-icon.png"
+                  alt="Paykop"
+                  width={40}
+                  height={40}
+                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl shadow-md shrink-0"
+                  priority
+                />
                 <div className="flex flex-col min-w-0">
                   <span className="text-xl sm:text-2xl font-black text-[var(--primary)] tracking-tight leading-none">
                     Paykop<span className="text-[var(--accent-green)]">.</span>

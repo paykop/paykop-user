@@ -60,7 +60,7 @@ On the backend, include `http://localhost:3000` in `ALLOWED_ORIGINS`. Local OTP 
 
 - **Self-serve sellers** must have `kyc_status=verified` (plus onboarded + subscription on the API) before listing products/services. The storefront disables “Add product” until verified; the Go API enforces this via `RequireSellerReady`.
 - **Seller KYC UI** is at **`/seller/kyc`** (auth + seller gate). Flow: fetch requirements → upload documents via `POST /storage/presigned-url` (`purpose=kyc`) → save draft (`PUT /sellers/me/kyc`) → submit (`POST /sellers/me/kyc/submit`). `/kyc` redirects to `/seller/kyc`.
-- **Agent trial listings** do **not** require KYC. Agents can create products/services for a seller without verification via `/agent/sellers/:id/*`. Agent-assisted KYC is at `/agent/sellers/:id/kyc`.
+- **Agent onboarding** (same readiness gates as self-serve): profile → subscribe (Commission activates instantly; paid plans open Razorpay UPI / QR for the seller on the agent device) → KYC at `/agent/sellers/:id/kyc` (**auto-verified** on agent submit) → business location → listings when `next_onboarding_step=ready`. Agent product/service APIs also require seller-ready (KYC + commercial access).
 - **Donations and blood requests** are public-service / community flows — **not** KYC-gated.
 - Product and KYC images use the shared presigned upload helper (`src/lib/upload/presignedUpload.ts`).
 

@@ -307,8 +307,11 @@ export interface SubscriptionPlan {
 
 export interface SellerSubscription {
   subscription_id: number;
+  id?: number;
   seller_id?: string;
+  user_id?: string;
   plan: string | SubscriptionPlan;
+  status?: string;
   starts_at: string;
   expires_at?: string;
   is_trial?: boolean;
@@ -375,6 +378,13 @@ export interface AgentSellerSummary {
   onboarding_source: string;
   onboarded_by_agent_id?: string;
   onboarded_at?: string;
+  commercial_access_status?: string;
+  seller_ready_missing?: string[];
+  is_seller_ready?: boolean;
+  next_onboarding_step?: string;
+  onboarding_fee_required?: boolean;
+  onboarding_fee_amount?: number;
+  subscription_plan?: string;
 }
 
 export interface AgentCreateSellerRequest {
@@ -395,19 +405,10 @@ export interface AgentUpdateSellerProfileRequest {
   profile_picture_url?: string;
 }
 
-export interface AgentGrantTrialResponse {
-  subscription_id: number;
-  seller_id: string;
-  plan: string;
-  starts_at: string;
-  expires_at?: string;
-  is_trial: boolean;
-}
-
 export interface AgentBusinessLocationRequest {
-  latitude: number;
-  longitude: number;
   address: string;
+  latitude?: number;
+  longitude?: number;
   city?: string;
   state?: string;
   postal_code?: string;

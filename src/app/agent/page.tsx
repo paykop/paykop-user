@@ -10,6 +10,9 @@ function AgentHubContent() {
 
   const onboarded = sellers.filter((s) => s.is_onboarded).length;
   const subscribed = sellers.filter((s) => s.has_subscription).length;
+  const ready = sellers.filter(
+    (s) => s.next_onboarding_step === "ready" || s.is_seller_ready === true
+  ).length;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -29,7 +32,8 @@ function AgentHubContent() {
           </div>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight">Onboard neighborhood sellers</h1>
           <p className="text-sm text-white/80">
-            Create sellers, set locations, grant trials, and list products or services on their behalf.
+            Create sellers, subscribe them (Commission or paid UPI / QR), complete KYC, set
+            business location, and list products or services on their behalf.
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
             <Link
@@ -57,7 +61,7 @@ function AgentHubContent() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="shopcart-card p-5 bg-white space-y-1">
               <div className="text-xs font-bold uppercase tracking-wider text-gray-400">Managed</div>
               <div className="text-3xl font-black text-gray-900">{sellers.length}</div>
@@ -71,7 +75,12 @@ function AgentHubContent() {
             <div className="shopcart-card p-5 bg-white space-y-1">
               <div className="text-xs font-bold uppercase tracking-wider text-gray-400">Subscribed</div>
               <div className="text-3xl font-black text-gray-900">{subscribed}</div>
-              <div className="text-xs text-gray-500">Active or trial plans</div>
+              <div className="text-xs text-gray-500">Commercial access active</div>
+            </div>
+            <div className="shopcart-card p-5 bg-white space-y-1">
+              <div className="text-xs font-bold uppercase tracking-wider text-gray-400">Ready</div>
+              <div className="text-3xl font-black text-gray-900">{ready}</div>
+              <div className="text-xs text-gray-500">Can add listings</div>
             </div>
           </div>
 

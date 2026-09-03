@@ -9,6 +9,7 @@ import { ProductCategory } from "@/types";
 import { rupeesToPaise } from "@/lib/money";
 import { uploadViaPresignedUrl } from "@/lib/upload/presignedUpload";
 import { AgentGate } from "@/components/agent/AgentGate";
+import { listingsBlockReason } from "@/lib/agent/onboarding";
 
 function CreateProductContent() {
   const params = useParams();
@@ -17,6 +18,7 @@ function CreateProductContent() {
 
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [loadingCats, setLoadingCats] = useState(true);
+  const [gateLoading, setGateLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [title, setTitle] = useState("");
@@ -26,6 +28,30 @@ function CreateProductContent() {
   const [categoryName, setCategoryName] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const seller =
+          (await api.agent.getOnboardingStatus(sellerId).catch(() => null)) ??
+          (await api.agent.getSeller(sellerId));
+        const reason = listingsBlockReason(seller);
+        if (reason) {
+          router.replace(`/agent/sellers/${sellerId}`);
+          return;
+        }
+      } catch {
+        router.replace(`/agent/sellers/${sellerId}`);
+        return;
+      } finally {
+        if (!cancelled) setGateLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sellerId, router]);
 
   useEffect(() => {
     api.categories
@@ -75,6 +101,15 @@ function CreateProductContent() {
       setSaving(false);
     }
   };
+
+  if (gateLoading) {
+    return (
+      <div className="py-20 text-center">
+        <Loader2 className="w-8 h-8 text-[var(--primary)] animate-spin mx-auto" />
+        <p className="text-xs text-gray-500 mt-2">Checking onboarding…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">

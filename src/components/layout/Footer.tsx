@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ShieldCheck, Truck, Headphones, RotateCcw } from "lucide-react";
 
 const supportPhone = process.env.NEXT_PUBLIC_SUPPORT_PHONE;
@@ -51,9 +52,13 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-[var(--primary-light)] flex items-center justify-center text-white font-black text-lg">
-                P
-              </div>
+              <Image
+                src="/brand/paykop-icon.png"
+                alt="Paykop"
+                width={36}
+                height={36}
+                className="w-9 h-9 rounded-xl"
+              />
               <span className="text-2xl font-black text-white tracking-tight">
                 Paykop<span className="text-[var(--accent-green)]">.</span>
               </span>
