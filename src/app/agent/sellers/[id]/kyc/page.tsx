@@ -32,7 +32,9 @@ function AgentKycContent() {
 
   const [serviceCategories, setServiceCategories] = useState<ServiceCategory[]>([]);
   const [kyc, setKyc] = useState<KycSubmission | null>(null);
-  const [requirements, setRequirements] = useState<KycRequirement[]>([]);
+  const [requirements, setRequirements] = useState<KycRequirement[]>(
+    () => FALLBACK_REQUIREMENTS.product
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
@@ -45,6 +47,10 @@ function AgentKycContent() {
 
   const categories =
     categoryKind === "service" ? serviceCategories : productCategories;
+
+  const effectiveCategoryId = categories.some((c) => c.id === primaryCategoryId)
+    ? primaryCategoryId
+    : (categories[0]?.id ?? primaryCategoryId);
 
   useEffect(() => {
     api.agent
@@ -74,34 +80,27 @@ function AgentKycContent() {
 
   useEffect(() => {
     if (categoryKind !== "service") return;
+    let cancelled = false;
     api.agent
       .getSellerServiceCategories(sellerId)
       .then((res) => {
-        const list = res.categories ?? [];
-        setServiceCategories(list);
-        if (list[0]?.id && !list.some((c) => c.id === primaryCategoryId)) {
-          setPrimaryCategoryId(list[0].id);
-        }
+        if (!cancelled) setServiceCategories(res.categories ?? []);
       })
-      .catch(() => setServiceCategories([]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      .catch(() => {
+        if (!cancelled) setServiceCategories([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [categoryKind, sellerId]);
 
   useEffect(() => {
-    if (categoryKind === "product" && productCategories[0]?.id && primaryCategoryId === 1) {
-      const exists = productCategories.some((c) => c.id === primaryCategoryId);
-      if (!exists) setPrimaryCategoryId(productCategories[0].id);
-    }
-  }, [categoryKind, productCategories, primaryCategoryId]);
-
-  useEffect(() => {
-    if (!primaryCategoryId) {
-      setRequirements(FALLBACK_REQUIREMENTS[categoryKind] || FALLBACK_REQUIREMENTS.product);
-      return;
-    }
-    api.kyc
-      .getRequirements(categoryKind, primaryCategoryId)
+    if (!effectiveCategoryId) return;
+    let cancelled = false;
+    api.agent
+      .getSellerKycRequirements(sellerId, categoryKind, effectiveCategoryId)
       .then((res) => {
+        if (cancelled) return;
         const list = res.requirements || [];
         setRequirements(
           list.length > 0
@@ -110,9 +109,14 @@ function AgentKycContent() {
         );
       })
       .catch(() => {
-        setRequirements(FALLBACK_REQUIREMENTS[categoryKind] || FALLBACK_REQUIREMENTS.product);
+        if (!cancelled) {
+          setRequirements(FALLBACK_REQUIREMENTS[categoryKind] || FALLBACK_REQUIREMENTS.product);
+        }
       });
-  }, [categoryKind, primaryCategoryId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [sellerId, categoryKind, effectiveCategoryId]);
 
   const handleUpload = async (docType: string, file: File) => {
     setUploading(docType);
@@ -152,7 +156,7 @@ function AgentKycContent() {
 
   const buildPayload = () => ({
     category_kind: categoryKind,
-    primary_category_id: primaryCategoryId,
+    primary_category_id: effectiveCategoryId,
     gstin: gstin.trim() || undefined,
     pan: pan.trim() || undefined,
     documents,
@@ -260,12 +264,12 @@ function AgentKycContent() {
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Primary category</label>
               <select
-                value={primaryCategoryId}
+                value={effectiveCategoryId}
                 onChange={(e) => setPrimaryCategoryId(Number(e.target.value))}
                 className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
               >
                 {categories.length === 0 ? (
-                  <option value={primaryCategoryId}>Loading categories…</option>
+                  <option value={effectiveCategoryId}>Loading categories…</option>
                 ) : (
                   categories.map((c) => (
                     <option key={c.id} value={c.id}>

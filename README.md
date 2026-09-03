@@ -19,14 +19,14 @@ npm run dev
 
 ## Scripts
 
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Production build (runs env validation) |
-| `npm run lint` | ESLint |
-| `npm run typecheck` | TypeScript check |
-| `npm test` | Vitest unit tests |
-| `npm run test:e2e` | Playwright smoke tests |
+| Script              | Description                            |
+| ------------------- | -------------------------------------- |
+| `npm run dev`       | Start development server               |
+| `npm run build`     | Production build (runs env validation) |
+| `npm run lint`      | ESLint                                 |
+| `npm run typecheck` | TypeScript check                       |
+| `npm test`          | Vitest unit tests                      |
+| `npm run test:e2e`  | Playwright smoke tests                 |
 
 ## Deployment
 
@@ -60,7 +60,7 @@ On the backend, include `http://localhost:3000` in `ALLOWED_ORIGINS`. Local OTP 
 
 - **Self-serve sellers** must have `kyc_status=verified` (plus onboarded + subscription on the API) before listing products/services. The storefront disables “Add product” until verified; the Go API enforces this via `RequireSellerReady`.
 - **Seller KYC UI** is at **`/seller/kyc`** (auth + seller gate). Flow: fetch requirements → upload documents via `POST /storage/presigned-url` (`purpose=kyc`) → save draft (`PUT /sellers/me/kyc`) → submit (`POST /sellers/me/kyc/submit`). `/kyc` redirects to `/seller/kyc`.
-- **Agent onboarding** (same readiness gates as self-serve): profile → subscribe (Commission activates instantly; paid plans open Razorpay UPI / QR for the seller on the agent device) → KYC at `/agent/sellers/:id/kyc` (**auto-verified** on agent submit) → business location → listings when `next_onboarding_step=ready`. Agent product/service APIs also require seller-ready (KYC + commercial access).
+- **Agent onboarding** (same readiness gates as self-serve): profile → subscribe (Commission activates instantly; paid plans open Razorpay UPI / QR for the seller on the agent device) → KYC at `/agent/sellers/:id/kyc` (requirements via `GET /agent/sellers/:id/kyc/requirements` with `kind` + `category_id`; **auto-verified** on agent submit) → business location. When `next_onboarding_step=ready`, onboarding is complete; products/services are optional and added one at a time. Agent product/service APIs also require seller-ready (KYC + commercial access).
 - **Donations and blood requests** are public-service / community flows — **not** KYC-gated.
 - Product and KYC images use the shared presigned upload helper (`src/lib/upload/presignedUpload.ts`).
 

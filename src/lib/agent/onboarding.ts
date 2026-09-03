@@ -134,6 +134,11 @@ export const AGENT_WIZARD_STEPS: { id: AgentWizardStep; label: string }[] = [
   { id: "listings", label: "Listings" },
 ];
 
+/** True when API ready maps to the listings wrap-up step (onboarding gates done). */
+export function isAgentOnboardingComplete(step: AgentWizardStep): boolean {
+  return step === "listings";
+}
+
 /** Map payment / await_kyc onto the strip index for progress UI. */
 export function wizardStepIndex(step: AgentWizardStep): number {
   if (step === "complete_subscription_payment") return 1;

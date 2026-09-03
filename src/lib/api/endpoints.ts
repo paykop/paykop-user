@@ -699,6 +699,16 @@ export const api = {
     getSellerKyc: (sellerId: string) =>
       apiClient<KycSubmission>(`/agent/sellers/${sellerId}/kyc`),
 
+    getSellerKycRequirements: (
+      sellerId: string,
+      categoryKind: string,
+      categoryId: number
+    ) =>
+      apiClient<{ requirements: KycRequirement[] }>(
+        `/agent/sellers/${sellerId}/kyc/requirements`,
+        { params: { kind: categoryKind, category_id: categoryId } }
+      ),
+
     getSellerKycPresignedUrl: (sellerId: string, data: PresignRequest) =>
       apiClient<PresignResponse>(`/agent/sellers/${sellerId}/kyc/presigned-url`, {
         method: "POST",

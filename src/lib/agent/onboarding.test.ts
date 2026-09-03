@@ -4,6 +4,7 @@ import {
   clearCachedSellerPaymentIntent,
   deriveAgentWizardStep,
   getCachedSellerPaymentIntent,
+  isAgentOnboardingComplete,
   isSellerReadyForListings,
   listingsBlockReason,
   wizardStepIndex,
@@ -101,6 +102,12 @@ describe("deriveAgentWizardStep", () => {
         is_seller_ready: true,
       })
     ).toBe("listings");
+  });
+
+  it("treats listings step as onboarding complete", () => {
+    expect(isAgentOnboardingComplete("listings")).toBe(true);
+    expect(isAgentOnboardingComplete("set_business_location")).toBe(false);
+    expect(isAgentOnboardingComplete("complete_kyc")).toBe(false);
   });
 });
 

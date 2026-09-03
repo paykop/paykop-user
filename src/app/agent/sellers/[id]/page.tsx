@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronRight,
   Loader2,
@@ -34,12 +34,15 @@ import {
   clearCachedSellerPaymentIntent,
   deriveAgentWizardStep,
   getCachedSellerPaymentIntent,
+  isAgentOnboardingComplete,
   wizardStepIndex,
 } from "@/lib/agent/onboarding";
 import { openSellerSubscriptionCheckout } from "@/lib/agent/openSellerSubscriptionCheckout";
 
 function SellerDetailContent() {
   const params = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const sellerId = params.id as string;
   const { latitude, longitude, cityName, formattedAddress } = useLocationStore();
 
@@ -119,6 +122,19 @@ function SellerDetailContent() {
 
   useEffect(() => () => stopPaymentPoll(), [stopPaymentPoll]);
 
+  useEffect(() => {
+    const listed = searchParams.get("listed");
+    if (!listed) return;
+    if (listed === "product") {
+      setMsg("Product created. Add another listing or tap Done.");
+    } else if (listed === "service") {
+      setMsg("Service created. Add another listing or tap Done.");
+    } else {
+      setMsg("Listing created. Add another or tap Done.");
+    }
+    router.replace(`/agent/sellers/${sellerId}`, { scroll: false });
+  }, [searchParams, sellerId, router]);
+
   const statusSource = onboarding ?? seller;
   const activeStep: AgentWizardStep | null = statusSource
     ? deriveAgentWizardStep(statusSource)
@@ -128,12 +144,24 @@ function SellerDetailContent() {
     if (activeStep !== "choose_subscription" && activeStep !== "complete_subscription_payment") {
       return;
     }
-    setPlansLoading(true);
-    api.subscriptions
-      .getPlans()
-      .then((data) => setPlans(Array.isArray(data) ? data.filter((p) => p.is_active !== false) : []))
-      .catch(() => setPlans([]))
-      .finally(() => setPlansLoading(false));
+    let cancelled = false;
+    void Promise.resolve().then(async () => {
+      if (cancelled) return;
+      setPlansLoading(true);
+      try {
+        const data = await api.subscriptions.getPlans();
+        if (!cancelled) {
+          setPlans(Array.isArray(data) ? data.filter((p) => p.is_active !== false) : []);
+        }
+      } catch {
+        if (!cancelled) setPlans([]);
+      } finally {
+        if (!cancelled) setPlansLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [activeStep]);
 
   const flash = (text: string) => {
@@ -365,6 +393,7 @@ function SellerDetailContent() {
   }
 
   const currentIndex = wizardStepIndex(activeStep);
+  const onboardingComplete = isAgentOnboardingComplete(activeStep);
   const cachedPay = getCachedSellerPaymentIntent(sellerId);
   const missing = (onboarding ?? seller).seller_ready_missing;
 
@@ -424,8 +453,8 @@ function SellerDetailContent() {
       <div className="shopcart-card p-4 sm:p-5 bg-white">
         <ol className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {AGENT_WIZARD_STEPS.map((step, idx) => {
-            const done = idx < currentIndex;
-            const current = idx === currentIndex;
+            const done = onboardingComplete || idx < currentIndex;
+            const current = !onboardingComplete && idx === currentIndex;
             return (
               <li key={step.id} className="flex items-center gap-2 text-sm min-w-0">
                 {done ? (
@@ -763,9 +792,10 @@ function SellerDetailContent() {
 
       {activeStep === "listings" && (
         <div className="shopcart-card p-5 sm:p-6 bg-white space-y-4">
-          <h2 className="font-bold text-gray-900">5. Add products or services</h2>
+          <h2 className="font-bold text-gray-900">Seller onboarding complete</h2>
           <p className="text-xs text-gray-500">
-            Onboarding is complete. Create listings on behalf of this seller.
+            This seller is ready. Optionally add products or services one at a time, then tap Done
+            when finished.
           </p>
           <div className="flex flex-wrap gap-2">
             <Link
@@ -785,6 +815,12 @@ function SellerDetailContent() {
               className="px-4 py-2.5 rounded-full bg-white border border-gray-200 text-xs font-bold flex items-center gap-1.5"
             >
               <ShieldCheck className="w-3.5 h-3.5" /> View KYC
+            </Link>
+            <Link
+              href="/agent/sellers"
+              className="px-4 py-2.5 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center gap-1.5"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" /> Done
             </Link>
           </div>
         </div>

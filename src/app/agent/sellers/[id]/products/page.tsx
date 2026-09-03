@@ -94,7 +94,7 @@ function CreateProductContent() {
         category: categoryName,
         images: imgs,
       });
-      router.push(`/agent/sellers/${sellerId}`);
+      router.push(`/agent/sellers/${sellerId}?listed=product`);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Failed to create product");
     } finally {

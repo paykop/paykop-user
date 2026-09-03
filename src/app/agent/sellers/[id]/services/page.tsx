@@ -118,7 +118,7 @@ function CreateServiceContent() {
         longitude: lngNum != null && !Number.isNaN(lngNum) ? lngNum : undefined,
         images,
       });
-      router.push(`/agent/sellers/${sellerId}`);
+      router.push(`/agent/sellers/${sellerId}?listed=service`);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Failed to create service");
     } finally {
