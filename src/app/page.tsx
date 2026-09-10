@@ -11,6 +11,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { SkeletonGrid } from "@/components/ui/SkeletonGrid";
 import { MediaThumb } from "@/components/ui/MediaThumb";
 import { ShelfBlank, padToMinSlots } from "@/components/ui/ShelfBlank";
+import { useTour } from "@/lib/tours/useTour";
 
 function bannerHref(banner: { type?: string; link_type?: string; link_id?: string; link_url?: string }) {
   if (banner.link_url) return banner.link_url;
@@ -31,6 +32,8 @@ export default function HomePage() {
     radius: 15,
     limit: 8,
   });
+
+  useTour("buyer_home", { autoStart: true, delayMs: 1200 });
 
   const heroBanner = feed?.banners?.[0];
   const extraBanners = feed?.banners?.slice(1) || [];
@@ -98,7 +101,7 @@ export default function HomePage() {
       </section>
 
       {feed && feed.productCategories.length > 0 && (
-        <section>
+        <section data-tour="categories-shelf">
           <Container>
             <SectionHeader title="Shop our top categories" subtitle={`Departments near ${cityName}`} href="/categories" />
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
@@ -191,7 +194,7 @@ export default function HomePage() {
         </section>
       )}
 
-      {(feed?.donations.length || feed?.bloodRequests.length) ? (
+      {(feed?.donations?.length || feed?.bloodRequests?.length) ? (
         <section>
           <Container>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -200,7 +203,7 @@ export default function HomePage() {
                 <div>
                   <h3 className="font-black text-lg">Community donations</h3>
                   <p className="text-sm text-slate-500">
-                    {feed?.donations.length ? `${feed.donations.length} active campaigns` : "Support local causes"}
+                    {feed?.donations?.length ? `${feed.donations.length} active campaigns` : "Support local causes"}
                   </p>
                 </div>
               </Link>
@@ -209,7 +212,7 @@ export default function HomePage() {
                 <div>
                   <h3 className="font-black text-lg">Blood requests</h3>
                   <p className="text-sm text-slate-500">
-                    {feed?.bloodRequests.length ? `${feed.bloodRequests.length} open requests` : "Help nearby patients"}
+                    {feed?.bloodRequests?.length ? `${feed.bloodRequests.length} open requests` : "Help nearby patients"}
                   </p>
                 </div>
               </Link>

@@ -133,33 +133,38 @@ export function RazorpayCheckout({
         throw new Error("Online payments are not configured.");
       }
 
-      if (!intent.razorpay_order_id) {
+      if (!intent.razorpay_order_id && !intent.razorpay_subscription_id) {
         throw new Error("Payment order ID missing from server.");
       }
 
+      const cleanContact = (user?.phone || "")
+        .replace(/^\+91|^91/, "")
+        .replace(/\D/g, "")
+        .slice(-10);
+
       const options: RazorpayOptions = {
         key: rzpKey,
-        amount: intent.amount || amountPaise,
         currency: intent.currency || "INR",
         name: "Paykop Hyperlocal",
         description: description || title,
-        order_id: intent.razorpay_order_id,
         prefill: {
           name: user ? `${user.first_name} ${user.last_name}` : "",
           email: user?.email || "",
-          contact: user?.phone || "",
+          contact: cleanContact,
         },
         theme: {
           color: "#1e3a8a",
         },
         handler: async function (response: RazorpaySuccessResponse) {
           try {
-            await api.payments.confirm({
-              provider_ref: intent.provider_ref,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_signature: response.razorpay_signature,
-            });
+            if (intent.razorpay_order_id && response.razorpay_order_id) {
+              await api.payments.confirm({
+                provider_ref: intent.provider_ref,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+            }
 
             onSuccess(response.razorpay_payment_id);
           } catch (confirmErr: unknown) {
@@ -179,6 +184,13 @@ export function RazorpayCheckout({
           },
         },
       };
+
+      if (intent.razorpay_subscription_id) {
+        options.subscription_id = intent.razorpay_subscription_id;
+      } else if (intent.razorpay_order_id) {
+        options.order_id = intent.razorpay_order_id;
+        options.amount = intent.amount || amountPaise;
+      }
 
       const rzp = new window.Razorpay(options);
       rzp.on("payment.failed", function (response: RazorpayFailureResponse) {

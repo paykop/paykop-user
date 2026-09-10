@@ -25,7 +25,10 @@ if (isProduction) {
 
   const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   if (!apiUrl) {
-    warn("NEXT_PUBLIC_API_BASE_URL is not set; build will use localhost default");
+    fail("NEXT_PUBLIC_API_BASE_URL is required in production (must use https://)");
+  }
+  if (!apiUrl.startsWith("https://")) {
+    fail(`NEXT_PUBLIC_API_BASE_URL must use https:// in production (got: ${apiUrl})`);
   }
 } else {
   console.log("[validate-env] Skipping production checks (NODE_ENV !== production)");

@@ -4,8 +4,10 @@ import Link from "next/link";
 import { Briefcase, ChevronRight, Loader2, Plus, Users, Sparkles } from "lucide-react";
 import { AgentGate } from "@/components/agent/AgentGate";
 import { useAgentSellers } from "@/lib/queries/hooks";
+import { useTour } from "@/lib/tours/useTour";
 
 function AgentHubContent() {
+  useTour("agent_hub", { autoStart: true, delayMs: 800 });
   const { data: sellers = [], isLoading: loading } = useAgentSellers();
 
   const onboarded = sellers.filter((s) => s.is_onboarded).length;
@@ -45,6 +47,7 @@ function AgentHubContent() {
             </Link>
             <Link
               href="/agent/sellers?new=1"
+              data-tour="agent-create-seller"
               className="px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
@@ -61,7 +64,7 @@ function AgentHubContent() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div data-tour="agent-stats" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="shopcart-card p-5 bg-white space-y-1">
               <div className="text-xs font-bold uppercase tracking-wider text-gray-400">Managed</div>
               <div className="text-3xl font-black text-gray-900">{sellers.length}</div>
@@ -84,7 +87,7 @@ function AgentHubContent() {
             </div>
           </div>
 
-          <div className="shopcart-card p-6 bg-white space-y-4">
+          <div data-tour="agent-sellers-list" className="shopcart-card p-6 bg-white space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-[var(--accent-green)]" />

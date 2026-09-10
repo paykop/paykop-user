@@ -32,7 +32,6 @@ export function cacheSellerPaymentIntent(
   meta?: { plan_id?: number; plan_name?: string }
 ): void {
   try {
-    if (typeof sessionStorage === "undefined") return;
     const payload: CachedSellerPaymentIntent = {
       plan_id: meta?.plan_id,
       plan_name: meta?.plan_name,
@@ -42,7 +41,14 @@ export function cacheSellerPaymentIntent(
       razorpay_order_id: payment.razorpay_order_id,
       razorpay_subscription_id: payment.razorpay_subscription_id,
     };
-    sessionStorage.setItem(pendingPaymentStorageKey(sellerId), JSON.stringify(payload));
+    const key = pendingPaymentStorageKey(sellerId);
+    const val = JSON.stringify(payload);
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(key, val);
+    }
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(key, val);
+    }
   } catch {
     // ignore quota / private mode
   }
@@ -52,8 +58,14 @@ export function getCachedSellerPaymentIntent(
   sellerId: string
 ): CachedSellerPaymentIntent | null {
   try {
-    if (typeof sessionStorage === "undefined") return null;
-    const raw = sessionStorage.getItem(pendingPaymentStorageKey(sellerId));
+    const key = pendingPaymentStorageKey(sellerId);
+    let raw: string | null = null;
+    if (typeof localStorage !== "undefined") {
+      raw = localStorage.getItem(key);
+    }
+    if (!raw && typeof sessionStorage !== "undefined") {
+      raw = sessionStorage.getItem(key);
+    }
     if (!raw) return null;
     return JSON.parse(raw) as CachedSellerPaymentIntent;
   } catch {
@@ -63,8 +75,13 @@ export function getCachedSellerPaymentIntent(
 
 export function clearCachedSellerPaymentIntent(sellerId: string): void {
   try {
-    if (typeof sessionStorage === "undefined") return;
-    sessionStorage.removeItem(pendingPaymentStorageKey(sellerId));
+    const key = pendingPaymentStorageKey(sellerId);
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem(key);
+    }
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem(key);
+    }
   } catch {
     // ignore
   }

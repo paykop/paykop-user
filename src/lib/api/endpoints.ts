@@ -52,6 +52,7 @@ import {
   BloodDonorProfile,
   RaiseBloodRequestInput,
   BookingStatusResponse,
+  PublicProfileResponse,
 } from "@/types";
 
 export const api = {
@@ -402,11 +403,27 @@ export const api = {
 
   // ── Donations & Blood ────────────────────────────────────────────────────
   donations: {
-    listCampaigns: () => apiClient<DonationCampaign[]>("/donations/campaigns", { skipAuth: true }),
+    listCampaigns: async (): Promise<DonationCampaign[]> => {
+      const res = await apiClient<DonationCampaign[] | { campaigns?: DonationCampaign[] }>(
+        "/donations/campaigns",
+        { skipAuth: true }
+      );
+      if (Array.isArray(res)) return res;
+      if (res && Array.isArray(res.campaigns)) return res.campaigns;
+      return [];
+    },
     getCampaignById: (id: number | string) =>
       apiClient<DonationCampaign>(`/donations/campaigns/${id}`, { skipAuth: true }),
 
-    listBloodRequests: () => apiClient<BloodRequest[]>("/donations/blood", { skipAuth: true }),
+    listBloodRequests: async (): Promise<BloodRequest[]> => {
+      const res = await apiClient<BloodRequest[] | { requests?: BloodRequest[] }>(
+        "/donations/blood",
+        { skipAuth: true }
+      );
+      if (Array.isArray(res)) return res;
+      if (res && Array.isArray(res.requests)) return res.requests;
+      return [];
+    },
     getBloodRequestById: (id: number | string) =>
       apiClient<BloodRequest>(`/donations/blood/${id}`, { skipAuth: true }),
 
@@ -691,6 +708,11 @@ export const api = {
         body: JSON.stringify({ plan_id: planId }),
       }),
 
+    cancelSellerSubscription: (sellerId: string) =>
+      apiClient<{ message: string }>(`/agent/sellers/${sellerId}/subscription/cancel`, {
+        method: "POST",
+      }),
+
     getSellerServiceCategories: (sellerId: string) =>
       apiClient<{ categories: ServiceCategory[] }>(
         `/agent/sellers/${sellerId}/service-categories`
@@ -724,6 +746,24 @@ export const api = {
     submitSellerKyc: (sellerId: string) =>
       apiClient<KycSubmission>(`/agent/sellers/${sellerId}/kyc/submit`, {
         method: "POST",
+      }),
+
+    getSellerProducts: async (sellerId: string) => {
+      try {
+        const profile = await apiClient<PublicProfileResponse>(`/profiles/${sellerId}`, {
+          skipAuth: true,
+        });
+        return Array.isArray(profile.products) ? profile.products : [];
+      } catch {
+        return [];
+      }
+    },
+  },
+
+  profiles: {
+    get: (id: string) =>
+      apiClient<PublicProfileResponse>(`/profiles/${id}`, {
+        skipAuth: true,
       }),
   },
 };

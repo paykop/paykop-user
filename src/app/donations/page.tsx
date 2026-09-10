@@ -7,7 +7,13 @@ import { formatPaise } from "@/lib/money";
 import { useDonations } from "@/lib/queries/hooks";
 
 export default function DonationsPage() {
-  const { data: campaigns = [], isLoading: loading } = useDonations();
+  const { data: rawCampaigns, isLoading: loading } = useDonations();
+
+  const campaigns = Array.isArray(rawCampaigns)
+    ? rawCampaigns
+    : rawCampaigns && typeof rawCampaigns === "object" && "campaigns" in rawCampaigns && Array.isArray((rawCampaigns as { campaigns?: unknown[] }).campaigns)
+    ? (rawCampaigns as { campaigns: typeof rawCampaigns }).campaigns
+    : [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">

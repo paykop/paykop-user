@@ -1,24 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ChevronRight, Loader2, Package } from "lucide-react";
+import {
+  ChevronRight,
+  Loader2,
+  Package,
+  Plus,
+  X,
+  ArrowLeft,
+  ExternalLink,
+  ImageIcon,
+} from "lucide-react";
 import { api } from "@/lib/api/endpoints";
-import { ProductCategory } from "@/types";
-import { rupeesToPaise } from "@/lib/money";
+import { Product, ProductCategory, AgentSellerSummary } from "@/types";
+import { formatPaise, rupeesToPaise } from "@/lib/money";
 import { uploadViaPresignedUrl } from "@/lib/upload/presignedUpload";
 import { AgentGate } from "@/components/agent/AgentGate";
 import { listingsBlockReason } from "@/lib/agent/onboarding";
+import { MediaThumb } from "@/components/ui/MediaThumb";
+import { toast } from "@/lib/toast";
 
-function CreateProductContent() {
+function AgentProductsCatalogueContent() {
   const params = useParams();
   const router = useRouter();
   const sellerId = params.id as string;
 
+  const [seller, setSeller] = useState<AgentSellerSummary | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
-  const [loadingCats, setLoadingCats] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [gateLoading, setGateLoading] = useState(true);
+
+  // Modal / Add Product Form state
+  const [showAddModal, setShowAddModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [title, setTitle] = useState("");
@@ -29,20 +45,36 @@ function CreateProductContent() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState("");
 
+  // Live image preview URL
+  const previewUrl = useMemo(() => {
+    if (imageFile) {
+      return URL.createObjectURL(imageFile);
+    }
+    return imageUrl.trim() || null;
+  }, [imageFile, imageUrl]);
+
+  const loadProducts = () =>
+    api.agent
+      .getSellerProducts(sellerId)
+      .then((data) => setProducts(Array.isArray(data) ? data : []))
+      .catch(() => setProducts([]));
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const seller =
+        const s =
           (await api.agent.getOnboardingStatus(sellerId).catch(() => null)) ??
           (await api.agent.getSeller(sellerId));
-        const reason = listingsBlockReason(seller);
+        if (cancelled) return;
+        setSeller(s);
+        const reason = listingsBlockReason(s);
         if (reason) {
           router.replace(`/agent/sellers/${sellerId}`);
           return;
         }
       } catch {
-        router.replace(`/agent/sellers/${sellerId}`);
+        if (!cancelled) router.replace(`/agent/sellers/${sellerId}`);
         return;
       } finally {
         if (!cancelled) setGateLoading(false);
@@ -54,38 +86,59 @@ function CreateProductContent() {
   }, [sellerId, router]);
 
   useEffect(() => {
-    api.categories
-      .getAll()
-      .then((data) => {
+    Promise.all([
+      loadProducts(),
+      api.categories.getAll().then((data) => {
         const list = Array.isArray(data) ? data : [];
         setCategories(list);
         if (list[0]?.name) setCategoryName(list[0].name);
-      })
-      .catch(() => setCategories([]))
-      .finally(() => setLoadingCats(false));
-  }, []);
+      }).catch(() => setCategories([])),
+    ]).finally(() => setLoading(false));
+  }, [sellerId]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleResetForm = () => {
+    setTitle("");
+    setDescription("");
+    setPriceRupees("");
+    setStock("10");
+    setImageFile(null);
+    setImageUrl("");
+    setErrorMsg("");
+    if (categories[0]?.name) setCategoryName(categories[0].name);
+  };
+
+  const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !priceRupees || !categoryName) {
       setErrorMsg("Title, price, and category are required.");
       return;
     }
-    const imgs: string[] = [];
-    if (imageFile) {
-      const { publicUrl } = await uploadViaPresignedUrl(imageFile, "product");
-      imgs.push(publicUrl);
-    } else if (imageUrl.trim()) {
-      imgs.push(imageUrl.trim());
-    }
-    if (imgs.length === 0) {
-      setErrorMsg("Please upload a product image or provide an image URL.");
-      return;
-    }
 
     setSaving(true);
     setErrorMsg("");
+
     try {
+      const imgs: string[] = [];
+      if (imageFile) {
+        try {
+          const { publicUrl } = await uploadViaPresignedUrl(imageFile, "product");
+          imgs.push(publicUrl);
+        } catch (uploadErr) {
+          const msg = uploadErr instanceof Error ? uploadErr.message : "Image upload failed";
+          setErrorMsg(`Failed to upload product image: ${msg}`);
+          setSaving(false);
+          return;
+        }
+      } else if (imageUrl.trim()) {
+        imgs.push(imageUrl.trim());
+      }
+
+      if (imgs.length === 0) {
+        setErrorMsg("Please upload a product image or provide an image URL.");
+        setSaving(false);
+        return;
+      }
+
       await api.agent.createProduct(sellerId, {
         title: title.trim(),
         description: description.trim(),
@@ -94,7 +147,11 @@ function CreateProductContent() {
         category: categoryName,
         images: imgs,
       });
-      router.push(`/agent/sellers/${sellerId}?listed=product`);
+
+      toast.success(`Published product "${title.trim()}" successfully!`);
+      setShowAddModal(false);
+      handleResetForm();
+      await loadProducts();
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Failed to create product");
     } finally {
@@ -111,117 +168,297 @@ function CreateProductContent() {
     );
   }
 
+  const sellerName = seller ? `${seller.first_name} ${seller.last_name}`.trim() : "Seller";
+
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-gray-500 flex-wrap">
         <Link href="/agent" className="hover:text-gray-900">
           Agent Hub
         </Link>
         <ChevronRight className="w-3.5 h-3.5" />
         <Link href={`/agent/sellers/${sellerId}`} className="hover:text-gray-900">
-          Seller
+          {sellerName}
         </Link>
         <ChevronRight className="w-3.5 h-3.5" />
-        <span className="font-semibold text-gray-900">Add product</span>
+        <span className="font-semibold text-gray-900">Product Catalogue</span>
       </nav>
 
-      <div className="flex items-center gap-2">
-        <Package className="w-5 h-5 text-[var(--primary)]" />
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Create product for seller</h1>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-100">
+        <div>
+          <div className="flex items-center gap-2">
+            <Package className="w-6 h-6 text-[var(--primary)]" />
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight">
+              Product Catalogue
+            </h1>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Manage inventory and product uploads on behalf of <strong className="text-gray-800">{sellerName}</strong>
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Link
+            href={`/agent/sellers/${sellerId}`}
+            className="px-4 py-2.5 rounded-full border border-gray-200 hover:bg-gray-50 text-xs font-semibold text-gray-700 flex items-center gap-1.5 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Seller Onboarding</span>
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              handleResetForm();
+              setShowAddModal(true);
+            }}
+            className="px-5 py-2.5 rounded-full shopcart-btn-primary text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
+          >
+            <Plus className="w-4 h-4 text-[var(--accent-green)]" />
+            <span>Add New Product</span>
+          </button>
+        </div>
       </div>
 
-      {errorMsg && (
-        <div className="text-xs text-red-600 bg-red-50 p-3 rounded-xl border border-red-100">{errorMsg}</div>
-      )}
-
-      {loadingCats ? (
-        <div className="py-12 text-center">
-          <Loader2 className="w-6 h-6 animate-spin mx-auto text-[var(--primary)]" />
+      {/* Products Grid */}
+      {loading ? (
+        <div className="py-20 text-center">
+          <Loader2 className="w-8 h-8 text-[var(--primary)] animate-spin mx-auto" />
+          <p className="text-xs text-gray-500 mt-2">Loading seller products...</p>
+        </div>
+      ) : products.length === 0 ? (
+        <div className="shopcart-card p-12 text-center bg-white space-y-4">
+          <div className="w-16 h-16 rounded-3xl bg-emerald-50 text-[var(--primary)] flex items-center justify-center mx-auto">
+            <Package className="w-8 h-8" />
+          </div>
+          <h3 className="font-bold text-lg text-gray-900">No products uploaded yet</h3>
+          <p className="text-xs text-gray-500 max-w-sm mx-auto">
+            This seller does not have any active product listings. Click &ldquo;Add New Product&rdquo; above to publish their first item.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              handleResetForm();
+              setShowAddModal(true);
+            }}
+            className="inline-flex px-5 py-2.5 rounded-full shopcart-btn-primary text-xs font-bold items-center gap-1.5 shadow-sm cursor-pointer"
+          >
+            <Plus className="w-4 h-4 text-[var(--accent-green)]" />
+            <span>Add First Product</span>
+          </button>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="shopcart-card p-6 bg-white space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Title</label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
-            />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Price (₹)</label>
-              <input
-                type="number"
-                min="1"
-                step="0.01"
-                value={priceRupees}
-                onChange={(e) => setPriceRupees(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
-                required
-              />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {products.map((prod) => {
+            const img = prod.images && prod.images.length > 0 ? prod.images[0] : null;
+
+            return (
+              <div
+                key={prod.id}
+                className="shopcart-card p-4 bg-white flex flex-col justify-between space-y-4 border border-gray-200 hover:shadow-md transition-shadow"
+              >
+                <div className="space-y-3">
+                  <div className="relative pt-[70%] rounded-xl overflow-hidden bg-gray-50">
+                    <MediaThumb src={img} alt={prod.title} className="object-cover" />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+                      <span>ID #{prod.id}</span>
+                      <span className="font-semibold text-emerald-700">Stock: {prod.stock}</span>
+                    </div>
+                    <h3 className="font-bold text-sm text-gray-900 line-clamp-1">{prod.title}</h3>
+                    <div className="text-base font-black text-[var(--primary)] mt-1">
+                      {formatPaise(prod.price)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                  <Link
+                    href={`/products/${prod.id}`}
+                    target="_blank"
+                    className="text-xs font-bold text-[var(--primary)] hover:underline flex items-center gap-1"
+                  >
+                    <span>View Public Page</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </Link>
+
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 uppercase">
+                    Live
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add Product Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-3xl shadow-2xl border border-gray-100 p-6 space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div>
+                <h3 className="font-bold text-lg text-gray-900">Add Product for {sellerName}</h3>
+                <p className="text-[11px] text-gray-400">Listing will go live immediately on Paykop</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-600 rounded-full cursor-pointer hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Stock</label>
-              <input
-                type="number"
-                min="0"
-                value={stock}
-                onChange={(e) => setStock(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
-                required
-              />
-            </div>
+
+            {errorMsg && (
+              <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl border border-red-100">
+                {errorMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateProduct} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Product Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Organic Cold Pressed Mustard Oil (1L)"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Short description of the product..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Price in INR (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    step="0.01"
+                    placeholder="e.g. 299"
+                    value={priceRupees}
+                    onChange={(e) => setPriceRupees(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Stock Quantity *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={stock}
+                    onChange={(e) => setStock(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Department / Category *
+                </label>
+                <select
+                  value={categoryName}
+                  onChange={(e) => setCategoryName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium"
+                  required
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                  {categories.length === 0 && <option value="General Merchandise">General Merchandise</option>}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Product Image *
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                  className="w-full text-xs mb-2 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer"
+                />
+
+                {previewUrl && (
+                  <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-gray-200 mb-2 bg-gray-50">
+                    <img
+                      src={previewUrl}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageFile(null);
+                        setImageUrl("");
+                      }}
+                      className="absolute top-1 right-1 p-1 bg-black/60 text-white rounded-full hover:bg-black/80 cursor-pointer"
+                      title="Remove image"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
+                <input
+                  type="url"
+                  placeholder="Or paste an image URL"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 py-3 rounded-full shopcart-btn-primary font-bold text-xs flex items-center justify-center gap-1.5 shadow-md cursor-pointer disabled:opacity-60"
+                >
+                  {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{saving ? "Uploading & Publishing…" : "Publish Product"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-3 text-xs font-semibold text-gray-500 hover:text-gray-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Category</label>
-            <select
-              value={categoryName}
-              onChange={(e) => setCategoryName(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
-              required
-            >
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.name}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Product image</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-              className="w-full text-xs"
-            />
-            <p className="text-[10px] text-gray-400 mt-1">Or paste an image URL below</p>
-            <input
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://..."
-              className="w-full mt-2 px-3 py-2.5 rounded-xl border border-gray-200 text-sm"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-6 py-3 rounded-full shopcart-btn-primary text-xs font-bold disabled:opacity-50 cursor-pointer"
-          >
-            {saving ? "Creating..." : "Create product"}
-          </button>
-        </form>
+        </div>
       )}
     </div>
   );
@@ -230,7 +467,7 @@ function CreateProductContent() {
 export default function AgentCreateProductPage() {
   return (
     <AgentGate>
-      <CreateProductContent />
+      <AgentProductsCatalogueContent />
     </AgentGate>
   );
 }

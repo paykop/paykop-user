@@ -68,13 +68,23 @@ function ensureRazorpayScript(): Promise<void> {
   });
 }
 
+export type SubscriptionCheckoutPayment = {
+  plan_id?: number;
+  plan_name?: string;
+  amount?: number;
+  currency?: string;
+  provider_ref?: string;
+  razorpay_order_id?: string;
+  razorpay_subscription_id?: string;
+};
+
 /**
- * Open Razorpay for an agent-initiated seller subscription intent.
- * Prefer subscription_id; fall back to order_id. Does not call createIntent or confirm
- * (agent cannot confirm seller payments — webhook + poll instead).
+ * Open Razorpay for a seller subscription intent (agent-managed or self-serve).
+ * Prefer subscription_id; fall back to order_id.
+ * For subscriptions, amount MUST NOT be passed to Razorpay checkout options.
  */
 export async function openSellerSubscriptionCheckout(opts: {
-  payment: CachedSellerPaymentIntent;
+  payment: SubscriptionCheckoutPayment;
   prefill: SellerCheckoutPrefill;
   description?: string;
   onPaid: () => void;
@@ -97,16 +107,20 @@ export async function openSellerSubscriptionCheckout(opts: {
     throw new Error("Razorpay checkout is still loading. Please try again.");
   }
 
+  const cleanContact = (opts.prefill.contact || "")
+    .replace(/^\+91|^91/, "")
+    .replace(/\D/g, "")
+    .slice(-10);
+
   const options: AgentRazorpayOptions = {
     key: rzpKey,
-    amount: opts.payment.amount,
     currency: opts.payment.currency || "INR",
     name: "Paykop Hyperlocal",
     description: opts.description || "Seller subscription",
     prefill: {
       name: opts.prefill.name,
       email: opts.prefill.email || "",
-      contact: (opts.prefill.contact || "").replace(/^\+/, ""),
+      contact: cleanContact,
     },
     theme: { color: "#1e3a8a" },
     handler: async () => {
@@ -120,9 +134,14 @@ export async function openSellerSubscriptionCheckout(opts: {
   };
 
   if (subId) {
+    // Razorpay Subscriptions derives the amount from the subscription entity on server.
+    // Passing 'amount' alongside subscription_id throws an error in Razorpay Checkout.
     options.subscription_id = subId;
   } else if (orderId) {
     options.order_id = orderId;
+    if (opts.payment.amount) {
+      options.amount = opts.payment.amount;
+    }
   }
 
   const rzp = new (getRazorpay())(options);
@@ -131,3 +150,5 @@ export async function openSellerSubscriptionCheckout(opts: {
   });
   rzp.open();
 }
+
+export const openSubscriptionCheckout = openSellerSubscriptionCheckout;

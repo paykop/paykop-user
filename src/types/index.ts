@@ -447,6 +447,23 @@ export interface AgentCreateServiceRequest {
   images?: string[];
 }
 
+export interface PublicProfileResponse {
+  id: string;
+  first_name: string;
+  last_name: string;
+  profile_picture_url?: string;
+  bio?: string;
+  social_links?: string;
+  location_enabled?: boolean;
+  latitude?: number;
+  longitude?: number;
+  address?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  products?: Product[];
+}
+
 // ── Search (federated) ─────────────────────────────────────────────────────
 
 export type SearchResultType =

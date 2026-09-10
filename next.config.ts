@@ -9,8 +9,16 @@ const defaultImageHosts = [
   "cdn.dummyjson.com",
 ];
 
-/** Wildcard CDN patterns (Next.js remotePatterns hostname wildcards). */
-const defaultWildcardHosts = ["**.r2.dev"];
+const defaultWildcardHosts = [
+  "*.r2.dev",
+  "**.r2.dev",
+  "*.gstatic.com",
+  "**.gstatic.com",
+  "encrypted-tbn*.gstatic.com",
+  "*.googleusercontent.com",
+  "**.googleusercontent.com",
+  "*.google.com",
+];
 
 function parseImageHosts(): string[] {
   const fromEnv =

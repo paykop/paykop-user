@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Store,
   CheckCircle2,
@@ -15,15 +16,19 @@ import { api } from "@/lib/api/endpoints";
 import { session } from "@/lib/auth/session";
 import { SellerSubscription, SubscriptionHistoryItem, SubscriptionPlan, User } from "@/types";
 import { formatPaise } from "@/lib/money";
-import { RazorpayCheckout } from "@/components/checkout/RazorpayCheckout";
+import { openSubscriptionCheckout } from "@/lib/agent/openSellerSubscriptionCheckout";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { kycStatusChipClass, kycStatusLabel, isKycVerified } from "@/lib/kyc";
 import { toast } from "@/lib/toast";
+import { useTour } from "@/lib/tours/useTour";
 
 export default function SellerPage() {
+  useTour("seller_hub", { autoStart: true, delayMs: 800 });
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [subscribingPlanId, setSubscribingPlanId] = useState<number | null>(null);
   const [subscriptionSuccess, setSubscriptionSuccess] = useState(false);
   const [activeSub, setActiveSub] = useState<SellerSubscription | null>(null);
   const [subHistory, setSubHistory] = useState<SubscriptionHistoryItem[]>([]);
@@ -81,6 +86,121 @@ export default function SellerPage() {
     }
   };
 
+  const handleSubscribe = async (plan: SubscriptionPlan) => {
+    if (!session.isAuthenticated()) {
+      window.dispatchEvent(new CustomEvent("paykop_open_login"));
+      return;
+    }
+
+    if (user && !user.is_onboarded) {
+      toast.error("Please complete your profile verification before subscribing.");
+      router.push("/onboarding");
+      return;
+    }
+
+    setSubscribingPlanId(plan.id);
+    try {
+      const res = await api.subscriptions.subscribe({ plan_id: plan.id });
+      if (res.mode === "activated") {
+        toast.success(`Subscribed to ${plan.name} successfully!`);
+        setSubscriptionSuccess(true);
+        const me = await api.auth.getMe().catch(() => null);
+        if (me) {
+          setUser(me);
+          session.setUser(me);
+        }
+        await loadSubscriptionData();
+        return;
+      }
+
+      if (res.mode === "payment_intent") {
+        if (!res.payment) {
+          toast.error("Payment details missing from server. Please try again.");
+          return;
+        }
+
+        await openSubscriptionCheckout({
+          payment: {
+            plan_id: plan.id,
+            plan_name: plan.name,
+            amount: res.payment.amount,
+            currency: res.payment.currency || "INR",
+            provider_ref: res.payment.provider_ref,
+            razorpay_order_id: res.payment.razorpay_order_id,
+            razorpay_subscription_id: res.payment.razorpay_subscription_id,
+          },
+          prefill: {
+            name: user ? `${user.first_name} ${user.last_name}`.trim() : "",
+            email: user?.email || "",
+            contact: user?.phone || "",
+          },
+          description: `Subscription: ${plan.name}`,
+          onPaid: () => {
+            toast.info("Payment submitted! Confirming subscription...");
+            let attempts = 0;
+            const timer = setInterval(async () => {
+              attempts += 1;
+              try {
+                const sub = await api.subscriptions.getMySubscription().catch(() => null);
+                if (sub && sub.status === "active") {
+                  clearInterval(timer);
+                  toast.success(`Subscription to ${plan.name} is now active!`);
+                  setSubscriptionSuccess(true);
+                  const me = await api.auth.getMe().catch(() => null);
+                  if (me) {
+                    setUser(me);
+                    session.setUser(me);
+                  }
+                  await loadSubscriptionData();
+                  return;
+                }
+              } catch {
+                // Ignore transient error
+              }
+
+              if (attempts >= 8) {
+                clearInterval(timer);
+                toast.info("Payment received. Refreshing subscription status...");
+                void loadSubscriptionData();
+                void api.auth.getMe().then((me) => {
+                  if (me) {
+                    setUser(me);
+                    session.setUser(me);
+                  }
+                });
+              }
+            }, 2000);
+          },
+          onDismiss: () => {
+            toast.info("Subscription checkout closed.");
+            void loadSubscriptionData();
+          },
+          onFailure: (err) => {
+            const message =
+              err && typeof err === "object" && "description" in err
+                ? String((err as { description?: string }).description)
+                : "Payment failed";
+            toast.error(message);
+            void loadSubscriptionData();
+          },
+        });
+        return;
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to subscribe to plan";
+      if (msg.includes("pending subscription checkout")) {
+        toast.error("You have a pending subscription checkout. Please wait a moment or refresh.");
+      } else if (msg.includes("already has an active subscription")) {
+        toast.error("You already have an active subscription. Cancel it first to switch plans.");
+      } else {
+        toast.error(msg);
+      }
+      void loadSubscriptionData();
+    } finally {
+      setSubscribingPlanId(null);
+    }
+  };
+
   if (!session.isAuthenticated()) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
@@ -125,6 +245,7 @@ export default function SellerPage() {
             </div>
             {isSeller && (
               <span
+                data-tour="seller-kyc-badge"
                 className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${kycStatusChipClass(
                   user?.kyc_status
                 )}`}
@@ -150,7 +271,7 @@ export default function SellerPage() {
           )}
 
           {isSeller && (
-            <div className="flex flex-wrap items-center gap-3 pt-2">
+            <div data-tour="seller-quick-actions" className="flex flex-wrap items-center gap-3 pt-2">
               <Link
                 href="/seller/products"
                 className="px-6 py-3 rounded-full bg-[var(--accent-green)] text-[var(--primary-dark)] font-bold text-xs flex items-center gap-2 shadow-md"
@@ -297,7 +418,7 @@ export default function SellerPage() {
       )}
 
       {/* Subscription Plans Section */}
-      <div className="space-y-6">
+      <div data-tour="seller-plans" className="space-y-6">
         <div>
           <h2 className="text-2xl font-black text-gray-900 tracking-tight">
             Seller Membership Plans
@@ -336,49 +457,97 @@ export default function SellerPage() {
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {plans.map((plan) => (
-              <div
-                key={plan.id}
-                className="shopcart-card p-6 bg-white flex flex-col justify-between space-y-6 border border-gray-200"
-              >
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-black text-lg text-gray-900">{plan.name}</h3>
-                    <p className="text-xs text-gray-500 mt-1">{plan.description}</p>
+            {plans.map((plan) => {
+              const isCurrentPlan =
+                activeSub?.status === "active" &&
+                (typeof activeSub.plan === "string"
+                  ? activeSub.plan === plan.name || activeSub.plan === String(plan.id)
+                  : activeSub.plan?.id === plan.id || activeSub.plan?.name === plan.name);
+              const hasActiveSub = activeSub?.status === "active";
+              const isSubscribing = subscribingPlanId === plan.id;
+
+              return (
+                <div
+                  key={plan.id}
+                  className={`shopcart-card p-6 bg-white flex flex-col justify-between space-y-6 border ${
+                    isCurrentPlan
+                      ? "border-[var(--primary)] ring-2 ring-[var(--primary)]/20 shadow-md"
+                      : "border-gray-200"
+                  }`}
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-black text-lg text-gray-900">{plan.name}</h3>
+                        <p className="text-xs text-gray-500 mt-1">{plan.description}</p>
+                      </div>
+                      {isCurrentPlan && (
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider shrink-0">
+                          Active
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-black text-[var(--primary)]">
+                        {formatPaise(plan.price)}
+                      </span>
+                      <span className="text-xs text-gray-400">/{plan.duration_days} days</span>
+                    </div>
+
+                    {(plan.features ?? []).length > 0 && (
+                      <ul className="space-y-2 pt-2 border-t border-gray-100 text-xs text-gray-600">
+                        {(plan.features ?? []).map((feat, fidx) => (
+                          <li key={fidx} className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span>{feat}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
 
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-black text-[var(--primary)]">
-                      {formatPaise(plan.price)}
-                    </span>
-                    <span className="text-xs text-gray-400">/{plan.duration_days} days</span>
-                  </div>
-
-                  {(plan.features ?? []).length > 0 && (
-                    <ul className="space-y-2 pt-2 border-t border-gray-100 text-xs text-gray-600">
-                      {(plan.features ?? []).map((feat, fidx) => (
-                        <li key={fidx} className="flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                          <span>{feat}</span>
-                        </li>
-                      ))}
-                    </ul>
+                  {isCurrentPlan ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="w-full py-3 px-4 rounded-xl bg-gray-100 text-gray-500 font-bold text-xs flex items-center justify-center gap-1.5 cursor-not-allowed border border-gray-200"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      Current Active Plan
+                    </button>
+                  ) : hasActiveSub ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toast.info("Please cancel your active subscription above before subscribing to a new plan.");
+                      }}
+                      className="w-full py-3 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer border border-gray-200 transition-colors"
+                    >
+                      Switch to {plan.name}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isSubscribing}
+                      onClick={() => handleSubscribe(plan)}
+                      className="w-full py-3 px-4 rounded-xl shopcart-btn-primary font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-60"
+                    >
+                      {isSubscribing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Processing…</span>
+                        </>
+                      ) : plan.price === 0 ? (
+                        "Activate Free Plan"
+                      ) : (
+                        `Subscribe to ${plan.name}`
+                      )}
+                    </button>
                   )}
                 </div>
-
-                <RazorpayCheckout
-                  subscriptionId={plan.id}
-                  amountPaise={plan.price}
-                  title={`Subscription: ${plan.name}`}
-                  onSuccess={() => {
-                    setSubscriptionSuccess(true);
-                    void loadSubscriptionData();
-                  }}
-                  buttonText={`Subscribe to ${plan.name}`}
-                  buttonClassName="w-full py-3 px-4 rounded-xl shopcart-btn-primary font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
-                />
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

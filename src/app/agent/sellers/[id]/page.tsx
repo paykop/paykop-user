@@ -14,6 +14,8 @@ import {
   ShieldCheck,
   Circle,
   Lock,
+  Plus,
+  ExternalLink,
 } from "lucide-react";
 import { api } from "@/lib/api/endpoints";
 import { useLocationStore } from "@/lib/location/store";
@@ -22,7 +24,9 @@ import {
   AgentSellerSummary,
   SellerSubscription,
   SubscriptionPlan,
+  Product,
 } from "@/types";
+import { MediaThumb } from "@/components/ui/MediaThumb";
 import { AgentGate } from "@/components/agent/AgentGate";
 import { kycStatusChipClass, kycStatusLabel } from "@/lib/kyc";
 import { formatPaise } from "@/lib/money";
@@ -55,6 +59,8 @@ function SellerDetailContent() {
   const [saving, setSaving] = useState(false);
   const [subscribingPlanId, setSubscribingPlanId] = useState<number | null>(null);
   const [awaitingPayment, setAwaitingPayment] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -116,6 +122,15 @@ function SellerDetailContent() {
     [loadSeller]
   );
 
+  const loadSellerProducts = useCallback(() => {
+    setProductsLoading(true);
+    return api.agent
+      .getSellerProducts(sellerId)
+      .then((data) => setProducts(Array.isArray(data) ? data : []))
+      .catch(() => setProducts([]))
+      .finally(() => setProductsLoading(false));
+  }, [sellerId]);
+
   useEffect(() => {
     void loadSeller();
   }, [loadSeller]);
@@ -127,18 +142,25 @@ function SellerDetailContent() {
     if (!listed) return;
     if (listed === "product") {
       setMsg("Product created. Add another listing or tap Done.");
+      void loadSellerProducts();
     } else if (listed === "service") {
       setMsg("Service created. Add another listing or tap Done.");
     } else {
       setMsg("Listing created. Add another or tap Done.");
     }
     router.replace(`/agent/sellers/${sellerId}`, { scroll: false });
-  }, [searchParams, sellerId, router]);
+  }, [searchParams, sellerId, router, loadSellerProducts]);
 
   const statusSource = onboarding ?? seller;
   const activeStep: AgentWizardStep | null = statusSource
     ? deriveAgentWizardStep(statusSource)
     : null;
+
+  useEffect(() => {
+    if (activeStep === "listings") {
+      void loadSellerProducts();
+    }
+  }, [activeStep, loadSellerProducts]);
 
   useEffect(() => {
     if (activeStep !== "choose_subscription" && activeStep !== "complete_subscription_payment") {
@@ -230,6 +252,19 @@ function SellerDetailContent() {
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Failed to open payment checkout");
     }
+  };
+
+  const handleCancelPendingSubscription = async () => {
+    if (!confirm("Cancel this pending subscription checkout and pick another plan?")) return;
+    stopPaymentPoll();
+    clearCachedSellerPaymentIntent(sellerId);
+    try {
+      await api.agent.cancelSellerSubscription(sellerId);
+      toast.success("Pending subscription cancelled. Please pick a plan.");
+    } catch {
+      toast.info("Cleared local pending intent. Please pick a plan.");
+    }
+    await load({ showLoading: false });
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -665,9 +700,16 @@ function SellerDetailContent() {
               onClick={() => {
                 void load({ showLoading: false }).then(() => flash("Status refreshed"));
               }}
-              className="px-5 py-2.5 rounded-full bg-white border border-gray-200 text-xs font-bold cursor-pointer"
+              className="px-5 py-2.5 rounded-full bg-white border border-gray-200 text-xs font-bold cursor-pointer hover:bg-gray-50"
             >
               Refresh status
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleCancelPendingSubscription()}
+              className="px-5 py-2.5 rounded-full bg-white border border-red-200 text-red-700 hover:bg-red-50 text-xs font-bold cursor-pointer transition-colors"
+            >
+              Cancel & Pick Another Plan
             </button>
           </div>
           {!cachedPay && (
@@ -791,37 +833,139 @@ function SellerDetailContent() {
       )}
 
       {activeStep === "listings" && (
-        <div className="shopcart-card p-5 sm:p-6 bg-white space-y-4">
-          <h2 className="font-bold text-gray-900">Seller onboarding complete</h2>
-          <p className="text-xs text-gray-500">
-            This seller is ready. Optionally add products or services one at a time, then tap Done
-            when finished.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href={`/agent/sellers/${sellerId}/products`}
-              className="px-4 py-2.5 rounded-full shopcart-btn-primary text-xs font-bold flex items-center gap-1.5"
-            >
-              <Package className="w-3.5 h-3.5" /> Add product
-            </Link>
-            <Link
-              href={`/agent/sellers/${sellerId}/services`}
-              className="px-4 py-2.5 rounded-full bg-white border border-gray-200 text-xs font-bold flex items-center gap-1.5"
-            >
-              <Wrench className="w-3.5 h-3.5" /> Add service
-            </Link>
-            <Link
-              href={`/agent/sellers/${sellerId}/kyc`}
-              className="px-4 py-2.5 rounded-full bg-white border border-gray-200 text-xs font-bold flex items-center gap-1.5"
-            >
-              <ShieldCheck className="w-3.5 h-3.5" /> View KYC
-            </Link>
-            <Link
-              href="/agent/sellers"
-              className="px-4 py-2.5 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center gap-1.5"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" /> Done
-            </Link>
+        <div className="space-y-6">
+          <div className="shopcart-card p-5 sm:p-6 bg-white space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  Seller Onboarding Complete
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Profile, subscription, KYC, and store location are verified. Upload products or services for this seller.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2 shrink-0">
+                <Link
+                  href={`/agent/sellers/${sellerId}/products`}
+                  className="px-4 py-2 rounded-full shopcart-btn-primary text-xs font-bold flex items-center gap-1.5 shadow-sm"
+                >
+                  <Plus className="w-3.5 h-3.5 text-[var(--accent-green)]" />
+                  <span>Add Product</span>
+                </Link>
+                <Link
+                  href={`/agent/sellers/${sellerId}/services`}
+                  className="px-4 py-2 rounded-full bg-white border border-gray-200 hover:bg-gray-50 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <Wrench className="w-3.5 h-3.5 text-gray-600" />
+                  <span>Add Service</span>
+                </Link>
+                <Link
+                  href="/agent/sellers"
+                  className="px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Done</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Uploaded Products Catalogue */}
+          <div className="shopcart-card p-5 sm:p-6 bg-white space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div>
+                <h3 className="font-bold text-sm sm:text-base text-gray-900 flex items-center gap-2">
+                  <Package className="w-4 h-4 text-[var(--primary)]" />
+                  Uploaded Products ({products.length})
+                </h3>
+                <p className="text-xs text-gray-400">Hyperlocal listings live on the Paykop marketplace</p>
+              </div>
+
+              <Link
+                href={`/agent/sellers/${sellerId}/products`}
+                className="text-xs font-bold text-[var(--primary)] hover:underline flex items-center gap-1"
+              >
+                <span>Catalogue Manager</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            {productsLoading ? (
+              <div className="py-12 text-center">
+                <Loader2 className="w-6 h-6 text-[var(--primary)] animate-spin mx-auto" />
+                <p className="text-xs text-gray-400 mt-2">Checking seller listings…</p>
+              </div>
+            ) : products.length === 0 ? (
+              <div className="py-10 text-center space-y-3 bg-gray-50 rounded-2xl border border-dashed border-gray-200 p-6">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[var(--primary)] flex items-center justify-center mx-auto">
+                  <Package className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-gray-900">No products uploaded yet</h4>
+                  <p className="text-xs text-gray-500 max-w-sm mx-auto mt-0.5">
+                    This seller is ready for their first product listing. Upload products with images, price, and stock to make them visible to buyers.
+                  </p>
+                </div>
+                <Link
+                  href={`/agent/sellers/${sellerId}/products`}
+                  className="inline-flex px-5 py-2.5 rounded-full shopcart-btn-primary text-xs font-bold items-center gap-1.5 shadow-sm"
+                >
+                  <Plus className="w-3.5 h-3.5 text-[var(--accent-green)]" />
+                  <span>Upload First Product</span>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {products.map((prod) => {
+                    const img = prod.images && prod.images.length > 0 ? prod.images[0] : null;
+
+                    return (
+                      <div
+                        key={prod.id}
+                        className="p-3 bg-gray-50/70 rounded-2xl border border-gray-200 flex gap-3 items-center hover:bg-white hover:shadow-sm transition-all"
+                      >
+                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-white shrink-0 border border-gray-100">
+                          <MediaThumb src={img} alt={prod.title} className="object-cover w-full h-full" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-bold text-xs text-gray-900 truncate">{prod.title}</h4>
+                          <div className="text-xs font-black text-[var(--primary)] mt-0.5">
+                            {formatPaise(prod.price)}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 text-[10px] text-gray-400">
+                            <span className="text-emerald-700 font-semibold">Stock: {prod.stock}</span>
+                            <span>·</span>
+                            <Link
+                              href={`/products/${prod.id}`}
+                              target="_blank"
+                              className="text-[var(--primary)] hover:underline flex items-center gap-0.5 font-medium"
+                            >
+                              <span>View</span>
+                              <ExternalLink className="w-2.5 h-2.5" />
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="pt-2 flex items-center justify-between">
+                  <span className="text-xs text-gray-400">
+                    {products.length} {products.length === 1 ? "product" : "products"} active in catalogue
+                  </span>
+                  <Link
+                    href={`/agent/sellers/${sellerId}/products`}
+                    className="text-xs font-bold text-[var(--primary)] hover:underline flex items-center gap-1"
+                  >
+                    <span>+ Add Another Product</span>
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

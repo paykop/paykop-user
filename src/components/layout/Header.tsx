@@ -205,7 +205,7 @@ export function Header() {
               </div>
             </div>
 
-            <div className="flex-1 min-w-0 max-w-2xl relative" ref={searchRef}>
+            <div className="flex-1 min-w-0 max-w-2xl relative" ref={searchRef} data-tour="search-input">
               <form onSubmit={handleSearchSubmit} className="relative">
                 <input
                   type="text"
@@ -271,6 +271,7 @@ export function Header() {
             <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
               <button
                 onClick={openLocationModal}
+                data-tour="location-selector"
                 className="hidden md:flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-slate-200 text-xs font-medium text-slate-700 hover:border-[var(--primary)] cursor-pointer"
               >
                 <MapPin className="w-3.5 h-3.5 text-[var(--primary-light)]" />
@@ -284,6 +285,7 @@ export function Header() {
 
               <Link
                 href="/cart"
+                data-tour="cart-button"
                 className="relative flex items-center gap-2 px-2.5 sm:px-3.5 py-2 rounded-full bg-[var(--surface-muted)] hover:bg-[var(--primary-subtle)]"
               >
                 <ShoppingCart className="w-5 h-5 text-[var(--primary)]" />
