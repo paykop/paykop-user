@@ -14,6 +14,9 @@ import {
   Wrench,
   Briefcase,
   MessageSquare,
+  FileText,
+  Shield,
+  LogOut,
 } from "lucide-react";
 import { api } from "@/lib/api/endpoints";
 import { session } from "@/lib/auth/session";
@@ -30,6 +33,24 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+  const [loggingOutAll, setLoggingOutAll] = useState(false);
+
+  const handleLogoutAllDevices = async () => {
+    if (!window.confirm("Are you sure you want to log out of all devices? You will need to sign in again.")) {
+      return;
+    }
+    setLoggingOutAll(true);
+    try {
+      await api.auth.logoutAllDevices();
+      toast.success("Successfully logged out of all devices");
+    } catch {
+      // Ignore network failure, still clear local session
+    } finally {
+      session.clearSession();
+      setLoggingOutAll(false);
+      router.push("/login");
+    }
+  };
 
   useEffect(() => {
     if (!session.isAuthenticated()) {
@@ -132,7 +153,7 @@ export default function AccountPage() {
       </div>
 
       {/* Quick Navigation Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <Link
           href="/account/orders"
           className="shopcart-card p-5 bg-white hover:border-[var(--primary)] transition-all space-y-2 group"
@@ -142,6 +163,17 @@ export default function AccountPage() {
           </div>
           <div className="font-bold text-sm text-gray-900">My Orders</div>
           <div className="text-xs text-gray-400">Track shipments & OTPs</div>
+        </Link>
+
+        <Link
+          href="/account/donations"
+          className="shopcart-card p-5 bg-white hover:border-[var(--primary)] transition-all space-y-2 group"
+        >
+          <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+            <FileText className="w-5 h-5" />
+          </div>
+          <div className="font-bold text-sm text-gray-900">Donations</div>
+          <div className="text-xs text-gray-400">80G tax receipts</div>
         </Link>
 
         <Link
@@ -295,6 +327,39 @@ export default function AccountPage() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Security & Sessions */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-sm space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <Shield className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-gray-900">Security & Sessions</h2>
+            <p className="text-xs text-gray-500">Manage your active logins across all browsers and devices</p>
+          </div>
+        </div>
+
+        <div className="pt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-t border-slate-100">
+          <div>
+            <p className="text-sm font-bold text-gray-900">Log out of all devices</p>
+            <p className="text-xs text-gray-500">Revokes all active sessions on your mobile devices, tablets, and desktop browsers.</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogoutAllDevices}
+            disabled={loggingOutAll}
+            className="px-5 py-2.5 rounded-full border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold flex items-center gap-2 cursor-pointer transition-colors disabled:opacity-50 shrink-0"
+          >
+            {loggingOutAll ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <LogOut className="w-4 h-4" />
+            )}
+            <span>Log out all devices</span>
+          </button>
+        </div>
       </div>
     </div>
   );

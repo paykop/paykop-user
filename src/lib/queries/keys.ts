@@ -24,6 +24,8 @@ export const queryKeys = {
   sellerPlans: ["seller-plans"] as const,
   donations: ["donations"] as const,
   donation: (id: number | string) => ["donation", id] as const,
+  organizations: ["organizations"] as const,
+  organization: (id: string) => ["organization", id] as const,
   blood: ["blood"] as const,
   search: (params: Record<string, unknown>) => ["search", params] as const,
   searchProducts: (params: Record<string, unknown>) => ["search-products", params] as const,

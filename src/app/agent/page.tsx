@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Briefcase, ChevronRight, Loader2, Plus, Users, Sparkles } from "lucide-react";
+import { Briefcase, ChevronRight, Loader2, Plus, Users, Sparkles, Heart } from "lucide-react";
 import { AgentGate } from "@/components/agent/AgentGate";
 import { useAgentSellers } from "@/lib/queries/hooks";
 import { useTour } from "@/lib/tours/useTour";
@@ -52,6 +52,13 @@ function AgentHubContent() {
             >
               <Plus className="w-4 h-4" />
               Create seller
+            </Link>
+            <Link
+              href="/agent/donations"
+              className="px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 flex items-center gap-2"
+            >
+              <Heart className="w-4 h-4 text-rose-400 fill-current" />
+              Collect Donations
             </Link>
           </div>
         </div>

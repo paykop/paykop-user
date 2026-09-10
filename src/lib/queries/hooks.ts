@@ -340,6 +340,21 @@ export function useDonation(id: number | string) {
   });
 }
 
+export function useOrganizations(page = 1, limit = 20) {
+  return useQuery({
+    queryKey: [...queryKeys.organizations, page, limit],
+    queryFn: () => api.donations.listOrganizations(page, limit),
+  });
+}
+
+export function useOrganization(id: string) {
+  return useQuery({
+    queryKey: queryKeys.organization(id),
+    enabled: !!id,
+    queryFn: () => api.donations.getOrganizationById(id),
+  });
+}
+
 export function useBloodRequests() {
   return useQuery({
     queryKey: queryKeys.blood,

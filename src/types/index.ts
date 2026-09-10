@@ -113,8 +113,33 @@ export interface ServiceItem {
   experience_years?: number;
 }
 
+export interface OrganizationPublic {
+  id: string;
+  legal_name: string;
+  org_type: string;
+  category: string;
+  is_80g_registered: boolean;
+  city_id?: number;
+  logo_url?: string;
+  description?: string;
+  created_at: string;
+}
+
+export interface OrganizationPublicDetail extends OrganizationPublic {
+  active_campaigns?: DonationCampaign[];
+}
+
+export interface OrganizationListResponse {
+  organizations: OrganizationPublic[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export interface DonationCampaign {
   id: number;
+  org_id?: string;
+  organization?: OrganizationPublic;
   title: string;
   description: string;
   image_url?: string;
@@ -129,6 +154,95 @@ export interface DonationCampaign {
   status: string;
   beneficiary_name?: string;
   end_date?: string;
+}
+
+export interface CreateDonationIntentRequest {
+  org_id: string;
+  campaign_id?: number;
+  amount_paise: number;
+  donor_name: string;
+  donor_phone: string;
+  donor_email?: string;
+  donor_pan?: string;
+  tax_eligible?: boolean;
+}
+
+export interface DonationIntentResponse {
+  donation_id: string;
+  razorpay_order_id: string;
+  amount_paise: number;
+  currency: string;
+}
+
+export interface DonationStatusResponse {
+  id: string;
+  org_id: string;
+  campaign_id?: number;
+  payment_status: "pending" | "retrying" | "captured" | "failed";
+  reconciliation_status: "not_applicable" | "pending" | "reconciled" | "disputed";
+  amount_paise: number;
+  tax_eligible: boolean;
+  financial_year: string;
+  donor_name: string;
+  donor_phone_masked: string;
+  receipt_url?: string;
+  created_at: string;
+}
+
+export interface OrgReceiptInfo {
+  id: string;
+  legal_name: string;
+  org_type: string;
+  category: string;
+  registration_number?: string;
+  pan?: string;
+  is_80g_registered: boolean;
+}
+
+export interface DonorReceiptInfo {
+  name: string;
+  phone_masked: string;
+  email?: string;
+  pan?: string;
+}
+
+export interface DonationReceiptResponse {
+  receipt_number: string;
+  receipt_date: string;
+  financial_year: string;
+  donation_id: string;
+  amount_paise: number;
+  amount_inr: number;
+  payment_method: string;
+  payment_date: string;
+  campaign_title?: string;
+  organization: OrgReceiptInfo;
+  donor: DonorReceiptInfo;
+  statutory_note: string;
+}
+
+export interface UserDonationItem {
+  id: string;
+  org_id: string;
+  org_name: string;
+  campaign_id?: number;
+  campaign_title?: string;
+  amount_paise: number;
+  amount_inr: number;
+  payment_method: string;
+  payment_status: string;
+  reconciliation_status: string;
+  tax_eligible: boolean;
+  financial_year: string;
+  receipt_number?: string;
+  created_at: string;
+}
+
+export interface UserDonationsListResponse {
+  donations: UserDonationItem[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export interface BloodRequest {

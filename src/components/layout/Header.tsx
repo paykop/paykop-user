@@ -126,7 +126,13 @@ export function Header() {
     const refreshToken = session.getRefreshToken();
     if (refreshToken) {
       try {
-        await api.auth.logout(refreshToken);
+        if (user?.role === "agent") {
+          await api.auth.logoutAgent(refreshToken);
+        } else if (user?.role === "support") {
+          await api.auth.logoutSupport(refreshToken);
+        } else {
+          await api.auth.logout(refreshToken);
+        }
       } catch {
         // still clear locally
       }

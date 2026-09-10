@@ -143,6 +143,10 @@ export async function apiClient<T = unknown>(
                 throw new Error("Session expired. Please log in again.");
               }
               const pair = await refreshRes.json();
+              if (!pair?.access_token || !pair?.refresh_token) {
+                session.clearSession();
+                throw new Error("Session expired. Please log in again.");
+              }
               session.setSession(pair);
               notifyRefresh(pair.access_token);
             })

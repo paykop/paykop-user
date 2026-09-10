@@ -9,6 +9,14 @@ import {
   ServiceItem,
   ServiceCategory,
   DonationCampaign,
+  OrganizationPublic,
+  OrganizationPublicDetail,
+  OrganizationListResponse,
+  CreateDonationIntentRequest,
+  DonationIntentResponse,
+  DonationStatusResponse,
+  DonationReceiptResponse,
+  UserDonationsListResponse,
   BloodRequest,
   Address,
   CartResponse,
@@ -99,6 +107,23 @@ export const api = {
       apiClient<{ message: string }>("/auth/logout", {
         method: "POST",
         body: JSON.stringify({ refresh_token: refreshToken }),
+      }),
+
+    logoutAgent: (refreshToken: string) =>
+      apiClient<{ message: string }>("/auth/agent/logout", {
+        method: "POST",
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      }),
+
+    logoutSupport: (refreshToken: string) =>
+      apiClient<{ message: string }>("/auth/support/logout", {
+        method: "POST",
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      }),
+
+    logoutAllDevices: () =>
+      apiClient<{ message: string }>("/auth/logout-all-devices", {
+        method: "POST",
       }),
   },
 
@@ -414,6 +439,95 @@ export const api = {
     },
     getCampaignById: (id: number | string) =>
       apiClient<DonationCampaign>(`/donations/campaigns/${id}`, { skipAuth: true }),
+
+    listOrganizations: (page?: number, limit?: number) =>
+      apiClient<OrganizationListResponse>("/donations/organizations", {
+        skipAuth: true,
+        params: { page, limit },
+      }),
+
+    getOrganizationById: (id: string) =>
+      apiClient<OrganizationPublicDetail>(`/donations/organizations/${id}`, {
+        skipAuth: true,
+      }),
+
+    createIntent: (data: CreateDonationIntentRequest, idempotencyKey?: string) =>
+      apiClient<DonationIntentResponse>("/donations/intent", {
+        method: "POST",
+        body: JSON.stringify(data),
+        idempotencyKey,
+        skipAuth: true,
+      }),
+
+    getStatus: (id: string) =>
+      apiClient<DonationStatusResponse>(`/donations/${id}/status`, {
+        skipAuth: true,
+      }),
+
+    getReceipt: (id: string) =>
+      apiClient<DonationReceiptResponse>(`/donations/${id}/receipt`, {
+        skipAuth: true,
+      }),
+
+    getMyDonations: (page?: number, limit?: number) =>
+      apiClient<UserDonationsListResponse>("/user/donations", {
+        params: { page, limit },
+      }),
+
+    agentCollectCash: (data: {
+      org_id: string;
+      campaign_id?: number;
+      amount_paise: number;
+      donor_name: string;
+      donor_phone: string;
+      donor_email?: string;
+      donor_pan?: string;
+      tax_eligible: boolean;
+      dpdp_consent_given: boolean;
+      collection_proof_url?: string;
+    }) =>
+      apiClient<{
+        donation_id: string;
+        payment_status: string;
+        reconciliation_status: string;
+        amount_paise: number;
+      }>("/agent/donations/collect", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    agentListDonations: (page?: number, limit?: number) =>
+      apiClient<{
+        donations: Array<{
+          id: string;
+          org_id: string;
+          campaign_id?: number;
+          payment_method: string;
+          amount_paise: number;
+          donor_name: string;
+          donor_phone_masked: string;
+          donor_email?: string;
+          tax_eligible: boolean;
+          financial_year: string;
+          payment_status: string;
+          reconciliation_status: string;
+          collected_by_agent_id: string;
+          collection_proof_url?: string;
+          deposit_proof_url?: string;
+          created_at: string;
+        }>;
+        total: number;
+        page: number;
+        limit: number;
+      }>("/agent/donations", {
+        params: { page, limit },
+      }),
+
+    agentUploadDepositProof: (id: string, depositProofUrl: string) =>
+      apiClient<{ message: string; deposit_proof_url: string }>(`/agent/donations/${id}/deposit-proof`, {
+        method: "POST",
+        body: JSON.stringify({ deposit_proof_url: depositProofUrl }),
+      }),
 
     listBloodRequests: async (): Promise<BloodRequest[]> => {
       const res = await apiClient<BloodRequest[] | { requests?: BloodRequest[] }>(
@@ -767,3 +881,5 @@ export const api = {
       }),
   },
 };
+
+export const endpoints = api;
