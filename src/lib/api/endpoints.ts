@@ -32,11 +32,12 @@ import {
   PlacePrediction,
   Banner,
   UserPermissions,
+  SellerReadiness,
+  AgentBusinessLocationResponse,
   AgentSellerSummary,
   AgentCreateSellerRequest,
   AgentUpdateSellerProfileRequest,
   AgentBusinessLocationRequest,
-  AgentBusinessLocationResponse,
   AgentCreateProductRequest,
   AgentCreateServiceRequest,
   Review,
@@ -692,6 +693,15 @@ export const api = {
     getPresignedUrl: (data: PresignRequest) =>
       apiClient<PresignResponse>("/storage/presigned-url", {
         method: "POST",
+        body: JSON.stringify(data),
+      }),
+  },
+
+  sellers: {
+    getReadiness: () => apiClient<SellerReadiness>("/sellers/me/readiness"),
+    setBusinessLocation: (data: AgentBusinessLocationRequest) =>
+      apiClient<AgentBusinessLocationResponse>("/sellers/me/location", {
+        method: "PUT",
         body: JSON.stringify(data),
       }),
   },

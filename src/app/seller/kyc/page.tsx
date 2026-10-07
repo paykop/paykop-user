@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, Loader2, Upload, ShieldCheck, AlertCircle } from "lucide-react";
 import { api } from "@/lib/api/endpoints";
+import { session } from "@/lib/auth/session";
 import { useCategories } from "@/lib/queries/hooks";
 import { uploadViaPresignedUrl } from "@/lib/upload/presignedUpload";
 import { KycDocumentInput, KycRequirement, KycSubmission } from "@/types";
@@ -110,6 +111,11 @@ export default function SellerKycPage() {
       const submitted = await api.kyc.submit();
       setKyc(submitted);
       toast.success("KYC submitted for review");
+      const [me] = await Promise.all([
+        api.auth.getMe().catch(() => null),
+        api.sellers.getReadiness().catch(() => null),
+      ]);
+      if (me) session.setUser(me);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to submit KYC");
     } finally {
@@ -144,6 +150,11 @@ export default function SellerKycPage() {
           <span className={`inline-flex mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${kycStatusChipClass(status)}`}>
             {kycStatusLabel(status)}
           </span>
+          {kyc?.submitted_at && status === "pending" && (
+            <p className="text-[11px] text-gray-500 mt-1">
+              Submitted {new Date(kyc.submitted_at).toLocaleString()} — awaiting staff review.
+            </p>
+          )}
         </div>
       </div>
 
@@ -260,7 +271,7 @@ export default function SellerKycPage() {
               disabled={saving || status === "pending"}
               className="px-5 py-2.5 rounded-full shopcart-btn-primary text-xs font-bold disabled:opacity-50 cursor-pointer"
             >
-              Submit for review
+              Submit KYC
             </button>
           </div>
         </div>

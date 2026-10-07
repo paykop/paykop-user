@@ -19,6 +19,9 @@ export interface User {
   current_longitude?: number;
   current_city_id?: number;
   current_address?: string;
+  is_seller_ready?: boolean;
+  next_onboarding_step?: string;
+  subscription_phase?: string;
 }
 
 export interface TokenPair {
@@ -467,13 +470,61 @@ export interface PlacePrediction {
   description: string;
 }
 
+export interface PlanTierLimits {
+  max_active_products?: number;
+  max_active_services?: number;
+  max_monthly_order_count?: number;
+  max_monthly_gmv?: number;
+}
+
+export interface PlanTierUsage {
+  active_products: number;
+  active_services: number;
+  monthly_order_count: number;
+  monthly_gmv: number;
+}
+
 export interface UserPermissions {
   is_admin: boolean;
+  is_support?: boolean;
   is_agent: boolean;
   is_seller: boolean;
   is_buyer: boolean;
   is_subscriber: boolean;
   is_onboarded: boolean;
+  kyc_status?: string;
+  is_seller_ready?: boolean;
+  seller_ready_missing?: string[];
+  subscription_phase?: string;
+  subscription_expires_at?: string;
+  days_until_subscription_expiry?: number;
+  is_trial?: boolean;
+  commercial_access_status?: string;
+  commission_rate_bps?: number;
+  tier_name?: string;
+  plan_limits?: PlanTierLimits;
+  plan_usage?: PlanTierUsage;
+  onboarding_fee_required?: boolean;
+  onboarding_fee_amount?: number;
+  next_onboarding_step?: string;
+}
+
+export interface SellerReadiness {
+  kyc_status?: string;
+  is_seller_ready: boolean;
+  seller_ready_missing?: string[];
+  next_onboarding_step?: string;
+  subscription_phase?: string;
+  subscription_expires_at?: string;
+  days_until_subscription_expiry?: number;
+  is_trial?: boolean;
+  commercial_access_status?: string;
+  commission_rate_bps?: number;
+  tier_name?: string;
+  plan_limits?: PlanTierLimits;
+  plan_usage?: PlanTierUsage;
+  onboarding_fee_required?: boolean;
+  onboarding_fee_amount?: number;
 }
 
 export interface AgentSellerSummary {
@@ -672,6 +723,7 @@ export interface KycSubmission {
   pan?: string;
   rejection_reason?: string;
   documents?: KycDocumentItem[];
+  submitted_at?: string;
   created_at?: string;
   updated_at?: string;
 }

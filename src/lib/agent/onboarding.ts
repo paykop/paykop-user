@@ -1,14 +1,23 @@
-import { AgentSellerSummary, PaymentIntentResponse } from "@/types";
+import { PaymentIntentResponse } from "@/types";
+import {
+  type SellerWizardStep,
+  deriveWizardStep,
+  isOnboardingComplete,
+  wizardStepIndex,
+  isSellerReadyForListings,
+  listingsBlockReason,
+  SELLER_WIZARD_STEPS,
+} from "@/lib/seller/onboarding";
 
-/** UI wizard steps for agent-managed seller onboarding. */
-export type AgentWizardStep =
-  | "complete_profile"
-  | "choose_subscription"
-  | "complete_subscription_payment"
-  | "complete_kyc"
-  | "await_kyc_review"
-  | "set_business_location"
-  | "listings";
+/** @deprecated use SellerWizardStep */
+export type AgentWizardStep = SellerWizardStep;
+
+export const AGENT_WIZARD_STEPS = SELLER_WIZARD_STEPS;
+
+export const deriveAgentWizardStep = deriveWizardStep;
+export const isAgentOnboardingComplete = isOnboardingComplete;
+
+export { wizardStepIndex, isSellerReadyForListings, listingsBlockReason };
 
 const PENDING_PAY_PREFIX = "paykop-agent-subpay:";
 
@@ -85,126 +94,4 @@ export function clearCachedSellerPaymentIntent(sellerId: string): void {
   } catch {
     // ignore
   }
-}
-
-/**
- * Derive the active agent UI step from backend next_onboarding_step.
- * Clients must render only this step (one-at-a-time).
- */
-export function deriveAgentWizardStep(
-  seller: Pick<
-    AgentSellerSummary,
-    "next_onboarding_step" | "is_onboarded" | "has_subscription" | "kyc_status" | "is_seller_ready"
-  >
-): AgentWizardStep {
-  const apiStep = seller.next_onboarding_step;
-
-  if (apiStep === "complete_profile" || (!apiStep && !seller.is_onboarded)) {
-    return "complete_profile";
-  }
-  if (apiStep === "complete_subscription_payment") {
-    return "complete_subscription_payment";
-  }
-  if (apiStep === "choose_subscription") {
-    return "choose_subscription";
-  }
-  if (
-    !apiStep &&
-    !seller.has_subscription &&
-    seller.is_onboarded
-  ) {
-    return "choose_subscription";
-  }
-  if (apiStep === "await_kyc_review" || (!apiStep && seller.kyc_status === "pending")) {
-    return "await_kyc_review";
-  }
-  if (
-    apiStep === "complete_kyc" ||
-    (!apiStep &&
-      seller.has_subscription &&
-      seller.kyc_status !== "verified" &&
-      seller.kyc_status !== "pending")
-  ) {
-    return "complete_kyc";
-  }
-  if (apiStep === "set_business_location") {
-    return "set_business_location";
-  }
-  if (apiStep === "ready") {
-    return "listings";
-  }
-
-  // Fallbacks when next_onboarding_step is missing
-  if (!seller.is_onboarded) return "complete_profile";
-  if (!seller.has_subscription) return "choose_subscription";
-  if (seller.kyc_status === "pending") return "await_kyc_review";
-  if (seller.kyc_status !== "verified") return "complete_kyc";
-  if (seller.is_seller_ready === true) return "listings";
-  return "set_business_location";
-}
-
-export const AGENT_WIZARD_STEPS: { id: AgentWizardStep; label: string }[] = [
-  { id: "complete_profile", label: "Profile" },
-  { id: "choose_subscription", label: "Plan" },
-  { id: "complete_kyc", label: "KYC" },
-  { id: "set_business_location", label: "Location" },
-  { id: "listings", label: "Listings" },
-];
-
-/** True when API ready maps to the listings wrap-up step (onboarding gates done). */
-export function isAgentOnboardingComplete(step: AgentWizardStep): boolean {
-  return step === "listings";
-}
-
-/** Map payment / await_kyc onto the strip index for progress UI. */
-export function wizardStepIndex(step: AgentWizardStep): number {
-  if (step === "complete_subscription_payment") return 1;
-  if (step === "await_kyc_review") return 2;
-  return AGENT_WIZARD_STEPS.findIndex((s) => s.id === step);
-}
-
-export function isSellerReadyForListings(
-  seller: Pick<
-    AgentSellerSummary,
-    "next_onboarding_step" | "is_seller_ready" | "is_onboarded" | "has_subscription" | "kyc_status"
-  >
-): boolean {
-  if (seller.next_onboarding_step === "ready") return true;
-  if (seller.next_onboarding_step && seller.next_onboarding_step !== "ready") return false;
-  if (seller.is_seller_ready === true) return true;
-  return !!seller.is_onboarded && !!seller.has_subscription && seller.kyc_status === "verified";
-}
-
-export function listingsBlockReason(
-  seller: Pick<
-    AgentSellerSummary,
-    "next_onboarding_step" | "is_onboarded" | "has_subscription" | "kyc_status" | "is_seller_ready"
-  >
-): string | null {
-  if (seller.next_onboarding_step === "ready") return null;
-  if (seller.next_onboarding_step && seller.next_onboarding_step !== "ready") {
-    if (seller.next_onboarding_step === "complete_profile") {
-      return "Complete the seller profile first.";
-    }
-    if (
-      seller.next_onboarding_step === "choose_subscription" ||
-      seller.next_onboarding_step === "complete_subscription_payment"
-    ) {
-      return "Subscribe the seller to a plan first.";
-    }
-    if (
-      seller.next_onboarding_step === "complete_kyc" ||
-      seller.next_onboarding_step === "await_kyc_review"
-    ) {
-      return "Complete and approve seller KYC first.";
-    }
-    if (seller.next_onboarding_step === "set_business_location") {
-      return "Set the seller business location first.";
-    }
-  }
-  if (!seller.is_onboarded) return "Complete the seller profile first.";
-  if (!seller.has_subscription) return "Subscribe the seller to a plan first.";
-  if (seller.kyc_status !== "verified") return "Complete and approve seller KYC first.";
-  if (seller.is_seller_ready === false) return "Seller is not ready yet. Finish onboarding steps.";
-  return null;
 }

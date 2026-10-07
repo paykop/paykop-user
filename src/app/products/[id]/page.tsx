@@ -22,13 +22,14 @@ import { formatPaise } from "@/lib/money";
 import { session } from "@/lib/auth/session";
 import { toast } from "@/lib/toast";
 import { useProduct, useAddToCart } from "@/lib/queries/hooks";
+import { ApiError } from "@/lib/api/client";
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const productId = params.id as string;
 
-  const { data: rawProduct, isLoading: loading } = useProduct(productId);
+  const { data: rawProduct, isLoading: loading, isError, error } = useProduct(productId);
   const addToCart = useAddToCart();
   const product = useMemo(
     () => (rawProduct ? { ...rawProduct, images: parseProductImages(rawProduct) } : null),
@@ -55,11 +56,23 @@ export default function ProductDetailPage() {
     );
   }
 
+  const notPublic =
+    isError &&
+    error instanceof ApiError &&
+    error.status === 403 &&
+    (error.code === "product_not_public" || /not public/i.test(error.message));
+
   if (!product) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center space-y-4">
-        <h2 className="text-2xl font-bold text-gray-900">Product Not Found</h2>
-        <p className="text-sm text-gray-500">The product you are looking for does not exist or has been removed.</p>
+        <h2 className="text-2xl font-bold text-gray-900">
+          {notPublic ? "Listing unavailable" : "Product Not Found"}
+        </h2>
+        <p className="text-sm text-gray-500">
+          {notPublic
+            ? "This product is no longer available in the marketplace."
+            : "The product you are looking for does not exist or has been removed."}
+        </p>
         <Link href="/" className="inline-flex px-6 py-3 rounded-full shopcart-btn-primary text-xs font-bold">
           Back to Store
         </Link>

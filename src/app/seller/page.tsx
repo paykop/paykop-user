@@ -21,6 +21,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { kycStatusChipClass, kycStatusLabel, isKycVerified } from "@/lib/kyc";
 import { toast } from "@/lib/toast";
 import { useTour } from "@/lib/tours/useTour";
+import { SellerOnboardingPanel } from "@/components/seller/SellerOnboardingPanel";
+import { SellerReadiness } from "@/types";
 
 export default function SellerPage() {
   useTour("seller_hub", { autoStart: true, delayMs: 800 });
@@ -33,6 +35,7 @@ export default function SellerPage() {
   const [activeSub, setActiveSub] = useState<SellerSubscription | null>(null);
   const [subHistory, setSubHistory] = useState<SubscriptionHistoryItem[]>([]);
   const [cancelling, setCancelling] = useState(false);
+  const [readiness, setReadiness] = useState<SellerReadiness | null>(null);
 
   const loadSubscriptionData = () =>
     Promise.all([
@@ -42,6 +45,19 @@ export default function SellerPage() {
       setActiveSub(sub);
       setSubHistory(Array.isArray(history) ? history : []);
     });
+
+  const refreshSellerState = async () => {
+    const [me, readinessData] = await Promise.all([
+      api.auth.getMe().catch(() => null),
+      api.sellers.getReadiness().catch(() => null),
+    ]);
+    if (me) {
+      setUser(me);
+      session.setUser(me);
+    }
+    if (readinessData) setReadiness(readinessData);
+    await loadSubscriptionData();
+  };
 
   useEffect(() => {
     if (!session.isAuthenticated()) return;
@@ -58,13 +74,15 @@ export default function SellerPage() {
         return [];
       }),
       loadSubscriptionData(),
+      api.sellers.getReadiness().catch(() => null),
     ])
-      .then(([me, planData]) => {
+      .then(([me, planData, , readinessData]) => {
         if (me) {
           setUser(me);
           session.setUser(me);
         }
         setPlans(Array.isArray(planData) ? planData : []);
+        if (readinessData) setReadiness(readinessData);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -75,10 +93,7 @@ export default function SellerPage() {
     try {
       await api.subscriptions.cancel();
       toast.success("Subscription cancelled");
-      await loadSubscriptionData();
-      const me = await api.auth.getMe();
-      setUser(me);
-      session.setUser(me);
+      await refreshSellerState();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to cancel subscription");
     } finally {
@@ -104,12 +119,7 @@ export default function SellerPage() {
       if (res.mode === "activated") {
         toast.success(`Subscribed to ${plan.name} successfully!`);
         setSubscriptionSuccess(true);
-        const me = await api.auth.getMe().catch(() => null);
-        if (me) {
-          setUser(me);
-          session.setUser(me);
-        }
-        await loadSubscriptionData();
+        await refreshSellerState();
         return;
       }
 
@@ -146,12 +156,7 @@ export default function SellerPage() {
                   clearInterval(timer);
                   toast.success(`Subscription to ${plan.name} is now active!`);
                   setSubscriptionSuccess(true);
-                  const me = await api.auth.getMe().catch(() => null);
-                  if (me) {
-                    setUser(me);
-                    session.setUser(me);
-                  }
-                  await loadSubscriptionData();
+                  await refreshSellerState();
                   return;
                 }
               } catch {
@@ -161,13 +166,7 @@ export default function SellerPage() {
               if (attempts >= 8) {
                 clearInterval(timer);
                 toast.info("Payment received. Refreshing subscription status...");
-                void loadSubscriptionData();
-                void api.auth.getMe().then((me) => {
-                  if (me) {
-                    setUser(me);
-                    session.setUser(me);
-                  }
-                });
+                void refreshSellerState();
               }
             }, 2000);
           },
@@ -227,6 +226,18 @@ export default function SellerPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Breadcrumb */}
+      {user && (
+        <SellerOnboardingPanel
+          subject={{
+            next_onboarding_step: readiness?.next_onboarding_step ?? user.next_onboarding_step,
+            is_onboarded: user.is_onboarded,
+            has_subscription: user.has_subscription,
+            kyc_status: readiness?.kyc_status ?? user.kyc_status,
+            is_seller_ready: readiness?.is_seller_ready ?? user.is_seller_ready,
+          }}
+        />
+      )}
+
       <nav className="flex items-center gap-2 text-xs text-gray-500 flex-wrap">
         <Link href="/" className="hover:text-gray-900">
           Home
@@ -375,11 +386,6 @@ export default function SellerPage() {
             <div className="space-y-1">
               <p className="font-bold text-gray-900">
                 {typeof activeSub.plan === "string" ? activeSub.plan : activeSub.plan?.name}
-                {activeSub.is_trial && (
-                  <span className="ml-2 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
-                    Trial
-                  </span>
-                )}
               </p>
               <p className="text-xs text-gray-500">
                 Active since {new Date(activeSub.starts_at).toLocaleDateString()}
@@ -404,7 +410,6 @@ export default function SellerPage() {
                   <li key={item.id} className="text-xs text-gray-600 flex justify-between gap-2">
                     <span>
                       {item.plan} · {item.status}
-                      {item.is_trial && " (trial)"}
                     </span>
                     <span className="text-gray-400 shrink-0">
                       {new Date(item.starts_at).toLocaleDateString()}

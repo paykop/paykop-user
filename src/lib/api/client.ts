@@ -16,7 +16,8 @@ function generateUUID(): string {
 export class ApiError extends Error {
   constructor(
     message: string,
-    public status: number
+    public status: number,
+    public code?: string
   ) {
     super(message);
     this.name = "ApiError";
@@ -46,16 +47,22 @@ async function parseJsonSafe(response: Response) {
   return response.json().catch(() => ({}));
 }
 
+type ApiErrorBody = { error?: string; message?: string; code?: string };
+
+async function errorBodyFromResponse(response: Response): Promise<ApiErrorBody> {
+  const text = await response.text().catch(() => "");
+  if (!text) return {};
+  try {
+    return JSON.parse(text) as ApiErrorBody;
+  } catch {
+    return { error: text };
+  }
+}
+
 async function errorMessageFromResponse(response: Response): Promise<string> {
   const fallback = `Request failed (${response.status})`;
-  const text = await response.text().catch(() => "");
-  if (!text) return fallback;
-  try {
-    const errorData = JSON.parse(text) as { error?: string; message?: string };
-    return errorData.error || errorData.message || fallback;
-  } catch {
-    return text;
-  }
+  const errorData = await errorBodyFromResponse(response);
+  return errorData.error || errorData.message || fallback;
 }
 
 export async function apiClient<T = unknown>(
@@ -116,8 +123,9 @@ export async function apiClient<T = unknown>(
           try {
             const retryRes = await fetch(url, { ...fetchOptions, headers, signal });
             if (!retryRes.ok) {
-              const msg = await errorMessageFromResponse(retryRes);
-              reject(new ApiError(msg, retryRes.status));
+              const body = await errorBodyFromResponse(retryRes);
+              const msg = body.error || body.message || `Request failed (${retryRes.status})`;
+              reject(new ApiError(msg, retryRes.status, body.code));
               return;
             }
             if (retryRes.status === 204) {
@@ -163,8 +171,9 @@ export async function apiClient<T = unknown>(
   }
 
   if (!response.ok) {
-    const message = await errorMessageFromResponse(response);
-    throw new ApiError(message, response.status);
+    const body = await errorBodyFromResponse(response);
+    const message = body.error || body.message || `Request failed (${response.status})`;
+    throw new ApiError(message, response.status, body.code);
   }
 
   if (response.status === 204) {

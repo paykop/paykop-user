@@ -19,14 +19,15 @@ npm run dev
 
 ## Scripts
 
-| Script              | Description                            |
-| ------------------- | -------------------------------------- |
-| `npm run dev`       | Start development server               |
-| `npm run build`     | Production build (runs env validation) |
-| `npm run lint`      | ESLint                                 |
-| `npm run typecheck` | TypeScript check                       |
-| `npm test`          | Vitest unit tests                      |
-| `npm run test:e2e`  | Playwright smoke tests                 |
+| Script                                        | Description                            |
+| --------------------------------------------- | -------------------------------------- |
+| `npm run dev`                                 | Start development server               |
+| `npm run build`                               | Production build (runs env validation) |
+| `npm run lint`                                | ESLint                                 |
+| `npm run typecheck`                           | TypeScript check                       |
+| `npm test`                                    | Vitest unit tests                      |
+| `npm run test:e2e`                            | Playwright smoke tests                 |
+| `npx tsx scripts/sync/endpoints-inventory.ts` | List API paths wired in `endpoints.ts` |
 
 ## Deployment
 

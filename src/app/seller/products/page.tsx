@@ -23,12 +23,17 @@ import {
   KYC_REQUIRED_LISTING_MSG,
   isKycBlockedError,
 } from "@/lib/kyc";
+import { usePermissions } from "@/lib/queries/hooks";
+import { listingsBlockReason } from "@/lib/seller/onboarding";
+import { SellerReadiness } from "@/types";
 
 export default function SellerProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [kycStatus, setKycStatus] = useState<string | undefined>();
+  const [readiness, setReadiness] = useState<SellerReadiness | null>(null);
+  const { data: permissions } = usePermissions(session.isAuthenticated());
 
   // Modal / Form state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -42,7 +47,13 @@ export default function SellerProductsPage() {
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const canAddProducts = isKycVerified(kycStatus);
+  const onboardingBlock = listingsBlockReason({
+    next_onboarding_step: readiness?.next_onboarding_step ?? permissions?.next_onboarding_step,
+    is_onboarded: permissions?.is_onboarded,
+    kyc_status: readiness?.kyc_status ?? permissions?.kyc_status,
+    is_seller_ready: readiness?.is_seller_ready ?? permissions?.is_seller_ready,
+  });
+  const canAddProducts = isKycVerified(kycStatus) && !onboardingBlock;
 
   const loadProducts = () =>
     Promise.all([
@@ -72,6 +83,7 @@ export default function SellerProductsPage() {
       .catch(() => {
         setKycStatus(session.getUser()?.kyc_status);
       });
+    api.sellers.getReadiness().then(setReadiness).catch(() => setReadiness(null));
   }, []);
 
   const handleCreateProduct = async (e: React.FormEvent) => {
@@ -174,7 +186,7 @@ export default function SellerProductsPage() {
       {!canAddProducts && (
         <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>{KYC_REQUIRED_LISTING_MSG}</span>
+          <span>{onboardingBlock || KYC_REQUIRED_LISTING_MSG}</span>
         </div>
       )}
 
