@@ -62,6 +62,22 @@ import {
   RaiseBloodRequestInput,
   BookingStatusResponse,
   PublicProfileResponse,
+  SellerPayoutAccount,
+  UpsertPayoutAccountRequest,
+  SellerPayoutsResponse,
+  CartCheckoutRequest,
+  CartCheckoutResponse,
+  FuelAssistanceRequest,
+  FuelAssistanceResponse,
+  InAppNotification,
+  NotificationListResponse,
+  RegisterDeviceTokenRequest,
+  MatchingDonorsResponse,
+  PendingCallOffer,
+  CallLogItem,
+  TurnCredentialsResponse,
+  NearbySellerItem,
+  NearbySellersResponse,
 } from "@/types";
 
 export const api = {
@@ -251,6 +267,12 @@ export const api = {
 
     getById: (id: number | string) =>
       apiClient<Product>(`/products/${id}`, { skipAuth: true }),
+
+    requestFuel: (data: FuelAssistanceRequest) =>
+      apiClient<FuelAssistanceResponse>("/products/fuels/request", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
   },
 
   search: {
@@ -308,6 +330,11 @@ export const api = {
     remove: (itemId: number) =>
       apiClient<CartResponse>(`/cart/${itemId}`, {
         method: "DELETE",
+      }),
+    checkout: (data?: CartCheckoutRequest) =>
+      apiClient<CartCheckoutResponse>("/cart/checkout", {
+        method: "POST",
+        body: JSON.stringify(data || {}),
       }),
   },
 
@@ -384,6 +411,17 @@ export const api = {
       }),
 
     getById: (id: number | string) => apiClient<PaymentIntentResponse>(`/payments/${id}`),
+
+    createOnboardingIntent: () =>
+      apiClient<PaymentIntentResponse>("/seller/payments/onboarding-intent", {
+        method: "POST",
+      }),
+
+    settleDues: (amountPaise?: number) =>
+      apiClient<PaymentIntentResponse>("/seller/payments/settle-dues", {
+        method: "POST",
+        body: JSON.stringify(amountPaise ? { amount_paise: amountPaise } : {}),
+      }),
   },
 
   // ── Services & Bookings ──────────────────────────────────────────────────
@@ -423,6 +461,10 @@ export const api = {
       apiClient<BookingStatusResponse>(`/bookings/${id}/status`),
     regenerateBookingOtp: (id: number | string) =>
       apiClient<{ verification_otp: string }>(`/bookings/${id}/regenerate-otp`, {
+        method: "POST",
+      }),
+    cancelBooking: (id: number | string) =>
+      apiClient<{ status: string; message: string }>(`/buyer/bookings/${id}/cancel`, {
         method: "POST",
       }),
   },
@@ -592,6 +634,19 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data),
       }),
+
+    getMatchingDonors: (requestId: number | string) =>
+      apiClient<MatchingDonorsResponse>(`/donations/blood/${requestId}/matching-donors`, {
+        skipAuth: true,
+      }),
+
+    claimBloodRequest: (requestId: number | string) =>
+      apiClient<{ message: string }>(`/donations/blood/${requestId}/claim`, {
+        method: "POST",
+      }),
+
+    getBloodRequestInterests: (requestId: number | string) =>
+      apiClient<{ interests: unknown[] }>(`/donations/blood/${requestId}/interests`),
   },
 
   // ── Chat ─────────────────────────────────────────────────────────────────
@@ -613,6 +668,12 @@ export const api = {
       apiClient<{ message: string }>(`/chat/conversations/${conversationId}/read`, {
         method: "PUT",
       }),
+    getPendingCall: (conversationId: number | string) =>
+      apiClient<PendingCallOffer | null>(`/chat/conversations/${conversationId}/calls/pending`),
+    getCallLogs: () =>
+      apiClient<CallLogItem[]>("/chat/call-logs"),
+    getTurnCredentials: () =>
+      apiClient<TurnCredentialsResponse>("/chat/turn-credentials"),
   },
 
   // ── Subscriptions & Seller ───────────────────────────────────────────────
@@ -663,6 +724,11 @@ export const api = {
       }),
     listOrders: () => apiClient<Order[]>("/seller/orders"),
     getOrderById: (id: number | string) => apiClient<Order>(`/seller/orders/${id}`),
+    verifyDelivery: (orderId: number | string, otp: string) =>
+      apiClient<PaymentIntentResponse>(`/seller/orders/${orderId}/verify-delivery`, {
+        method: "POST",
+        body: JSON.stringify({ otp }),
+      }),
     verifyCod: (orderId: number | string, otp: string) =>
       apiClient<{ message: string }>(`/seller/orders/${orderId}/verify-cod`, {
         method: "POST",
@@ -698,11 +764,35 @@ export const api = {
   },
 
   sellers: {
+    getNearby: (params: { latitude: number; longitude: number; radius?: number }) =>
+      apiClient<NearbySellersResponse>("/sellers/nearby", {
+        params,
+        skipAuth: true,
+      }),
+    getById: (sellerId: string) =>
+      apiClient<PublicProfileResponse | NearbySellerItem>(`/sellers/${sellerId}`, {
+        skipAuth: true,
+      }),
     getReadiness: () => apiClient<SellerReadiness>("/sellers/me/readiness"),
     setBusinessLocation: (data: AgentBusinessLocationRequest) =>
       apiClient<AgentBusinessLocationResponse>("/sellers/me/location", {
         method: "PUT",
         body: JSON.stringify(data),
+      }),
+    getPayoutAccount: () =>
+      apiClient<SellerPayoutAccount>("/sellers/me/payout-account"),
+    updatePayoutAccount: (data: UpsertPayoutAccountRequest) =>
+      apiClient<SellerPayoutAccount>("/sellers/me/payout-account", {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    verifyPayoutAccount: () =>
+      apiClient<SellerPayoutAccount>("/sellers/me/payout-account/verify", {
+        method: "POST",
+      }),
+    listPayouts: (page?: number, limit?: number) =>
+      apiClient<SellerPayoutsResponse>("/sellers/me/payouts", {
+        params: { page, limit },
       }),
   },
 
@@ -756,6 +846,28 @@ export const api = {
     closeTicket: (id: number | string) =>
       apiClient<{ status: string }>(`/support/tickets/${id}/close`, {
         method: "PATCH",
+      }),
+  },
+
+  // ── Notifications & Devices ──────────────────────────────────────────────
+  notifications: {
+    list: () => apiClient<NotificationListResponse | InAppNotification[]>("/notifications"),
+    markAsRead: (id: number | string) =>
+      apiClient<{ message: string }>(`/notifications/${id}/read`, {
+        method: "PATCH",
+      }),
+    markAllAsRead: () =>
+      apiClient<{ message: string }>("/notifications/read-all", {
+        method: "PATCH",
+      }),
+    registerDeviceToken: (token: string, platform = "web") =>
+      apiClient<{ message: string }>("/device-tokens", {
+        method: "POST",
+        body: JSON.stringify({ token, platform }),
+      }),
+    unregisterDeviceToken: (token: string) =>
+      apiClient<{ message: string }>(`/device-tokens/${token}`, {
+        method: "DELETE",
       }),
   },
 

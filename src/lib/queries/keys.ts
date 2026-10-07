@@ -45,4 +45,13 @@ export const queryKeys = {
   bloodDonorMe: ["blood-donor-me"] as const,
   agentSellers: ["agent-sellers"] as const,
   agentSeller: (id: string) => ["agent-seller", id] as const,
+  sellerReadiness: ["seller-readiness"] as const,
+  sellerPayoutAccount: ["seller-payout-account"] as const,
+  sellerPayouts: (page?: number, limit?: number) => ["seller-payouts", page, limit] as const,
+  notifications: ["notifications"] as const,
+  matchingDonors: (requestId: number | string) => ["matching-donors", requestId] as const,
+  pendingCalls: (convId: number | string) => ["pending-calls", convId] as const,
+  callLogs: ["call-logs"] as const,
+  nearbySellers: (lat?: number, lng?: number, radius?: number) =>
+    ["nearby-sellers", lat, lng, radius] as const,
 };

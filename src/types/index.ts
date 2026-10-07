@@ -367,8 +367,10 @@ export interface Order {
   quantity: number;
   total_price: number; // paise
   status: "pending" | "paid" | "shipped" | "delivered" | "cancelled" | string;
-  address_id?: string;
-  delivery_otp?: string;
+  order_group_id?: string | null;
+  address_id?: string | null;
+  delivery_otp?: string | null;
+  delivered_at?: string | null;
   created_at: string;
   updated_at: string;
   product?: {
@@ -509,7 +511,50 @@ export interface UserPermissions {
   next_onboarding_step?: string;
 }
 
+export interface ProfileCheck {
+  required: boolean;
+  completed: boolean;
+}
+
+export interface ProfilePhotoCheck {
+  required: boolean;
+  completed: boolean;
+}
+
+export interface KYCCheck {
+  required: boolean;
+  completed: boolean;
+  verified: boolean;
+}
+
+export interface PayoutAccountCheck {
+  required: boolean;
+  completed: boolean;
+  verified: boolean;
+}
+
+export interface SubscriptionCheck {
+  required: boolean;
+  active: boolean;
+}
+
+export interface DebtLimitCheck {
+  passed: boolean;
+}
+
+export interface ReadinessChecks {
+  profile: ProfileCheck;
+  profile_photo: ProfilePhotoCheck;
+  kyc: KYCCheck;
+  payout_account: PayoutAccountCheck;
+  subscription: SubscriptionCheck;
+  debt_limit: DebtLimitCheck;
+}
+
 export interface SellerReadiness {
+  ready?: boolean;
+  checks?: ReadinessChecks;
+  missing?: string[];
   kyc_status?: string;
   is_seller_ready: boolean;
   seller_ready_missing?: string[];
@@ -525,6 +570,9 @@ export interface SellerReadiness {
   plan_usage?: PlanTierUsage;
   onboarding_fee_required?: boolean;
   onboarding_fee_amount?: number;
+  has_verified_payout_account?: boolean;
+  outstanding_debt_paise?: number;
+  max_debit_limit_paise?: number;
 }
 
 export interface AgentSellerSummary {
@@ -878,3 +926,182 @@ export interface BookingStatusResponse {
   booking_time?: string;
   verification_otp?: string;
 }
+
+// ── Seller Payouts & Bank Accounts ──────────────────────────────────────────
+
+export interface SellerPayoutAccount {
+  seller_id: string;
+  account_type: "bank_account" | "vpa" | string;
+  account_masked: string;
+  beneficiary_name: string;
+  ifsc?: string;
+  bank_name?: string;
+  is_verified: boolean;
+  fund_account_id?: string;
+  contact_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface UpsertPayoutAccountRequest {
+  account_type: "bank_account" | "vpa";
+  account_number?: string;
+  ifsc?: string;
+  beneficiary_name: string;
+  bank_name?: string;
+  vpa?: string;
+}
+
+export interface SellerPayoutItem {
+  id: string;
+  order_id?: number | null;
+  payment_id?: number | null;
+  settlement_batch_id?: number | null;
+  amount_paise: number;
+  gross_amount_paise: number;
+  platform_fee_paise: number;
+  status: "pending" | "processing" | "completed" | "on_hold" | "failed" | "reversed" | string;
+  payout_reference?: string | null;
+  failure_reason?: string | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface SellerPayoutsResponse {
+  payouts: SellerPayoutItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+// ── Cart Checkout & Multi-Orders ───────────────────────────────────────────
+
+export interface CartCheckoutRequest {
+  payment_method?: "online" | "cash" | string;
+  address_id?: string;
+  cart_item_ids?: number[];
+}
+
+export interface CartCheckoutResponse {
+  order_group_id: string;
+  orders: Order[];
+  total_amount: number;
+  item_count: number;
+  payment_method: string;
+}
+
+// ── Fuel Assistance ────────────────────────────────────────────────────────
+
+export interface FuelAssistanceRequest {
+  fuel_type: "petrol" | "diesel" | string;
+  quantity_litres: number;
+  latitude: number;
+  longitude: number;
+  address: string;
+  contact_phone: string;
+}
+
+export interface FuelAssistanceResponse {
+  message: string;
+  id?: number | string;
+}
+
+// ── In-App Notifications & Push Tokens ─────────────────────────────────────
+
+export interface InAppNotification {
+  id: number | string;
+  user_id: string;
+  type: string;
+  title: string;
+  message: string;
+  data?: Record<string, unknown>;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface NotificationListResponse {
+  notifications: InAppNotification[];
+  total: number;
+  unread_count?: number;
+}
+
+export interface RegisterDeviceTokenRequest {
+  token: string;
+  platform: "android" | "ios" | "web" | string;
+}
+
+// ── Blood Matching Donors ──────────────────────────────────────────────────
+
+export interface MatchingDonorItem {
+  id: number;
+  user_id: string;
+  donor_name: string;
+  donor_phone: string;
+  blood_type: string;
+  city_id?: number;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  is_available: boolean;
+  created_at: string;
+}
+
+export interface MatchingDonorsResponse {
+  blood_type: string;
+  city_id?: number;
+  total_matching: number;
+  donors: MatchingDonorItem[];
+}
+
+// ── Calling & Signaling Envelopes ──────────────────────────────────────────
+
+export interface PendingCallOffer {
+  call_id: string;
+  conversation_id: string;
+  caller_id: string;
+  call_type: "audio" | "video";
+  sdp?: string;
+  caller_name?: string;
+  caller_avatar?: string;
+  created_at: number;
+}
+
+export interface CallLogItem {
+  id: string | number;
+  conversation_id: string;
+  caller_id: string;
+  callee_id: string;
+  call_type: "audio" | "video";
+  status: "completed" | "missed" | "rejected" | "busy" | string;
+  duration_seconds?: number;
+  created_at: string;
+}
+
+export interface TurnCredentialsResponse {
+  username?: string;
+  password?: string;
+  uris?: string[];
+  ttl?: number;
+}
+
+// ── Nearby Sellers & Discovery ─────────────────────────────────────────────
+
+export interface NearbySellerItem {
+  id: string;
+  name: string;
+  first_name?: string;
+  last_name?: string;
+  profile_picture_url?: string;
+  bio?: string;
+  latitude?: number;
+  longitude?: number;
+  address?: string;
+  city?: string;
+  distance_km?: number;
+  location_enabled?: boolean;
+}
+
+export interface NearbySellersResponse {
+  sellers: NearbySellerItem[];
+}
+

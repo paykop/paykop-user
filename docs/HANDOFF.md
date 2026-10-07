@@ -211,11 +211,12 @@ Paykop operates as a strict city-first hyperlocal marketplace. Entities are pinn
 
 ## 6. Seller Lifecycle & KYC Verification Architecture
 
-Merchants cannot sell products or book services without completing the onboarding pipeline enforced by Go middleware `RequireSellerReady`.
+Merchants cannot sell products or book services without completing the onboarding pipeline enforced by Go middleware `RequireSellerReady`. The authoritative status is queried via `GET /api/v1/sellers/me/readiness`.
 
 ```
                     ┌───────────────────────────────┐
                     │      1. User Profile Setup    │
+                    │    (Profile + Store Avatar)   │
                     └───────────────┬───────────────┘
                                     │
                                     ▼
@@ -235,15 +236,41 @@ Merchants cannot sell products or book services without completing the onboardin
                                     │
                                     ▼
                     ┌───────────────────────────────┐
+                    │  4. Payout Account Setup      │
+                    │  (Bank / UPI via RazorpayX)   │
+                    └───────────────┬───────────────┘
+                                    │
+                                    ▼
+                    ┌───────────────────────────────┐
+                    │  5. Platform Debt Clearance   │
+                    │  (Outstanding Debt <= Limit)  │
+                    └───────────────┬───────────────┘
+                                    │
+                                    ▼
+                    ┌───────────────────────────────┐
                     │    Status = 'ready'           │
                     │ Product/Service Listing Live  │
                     └───────────────────────────────┘
 ```
 
+### 6-Point Verification Gates (`GET /sellers/me/readiness`):
+1. **`profile`**: `is_onboarded == true` and legal first name is present (`first_name != ""`). Completed via `POST /users/onboarding`.
+2. **`profile_photo`**: Store avatar / profile picture uploaded (`profile_picture_url != ""`).
+3. **`kyc`**: Completed and verified (`kyc_status == "verified"`).
+4. **`payout_account`**: Registered payout account verified via RazorpayX (`fund_account_id` assigned and `is_verified == true`).
+5. **`subscription`**: Active commercial subscription or trial (`has_subscription == true`).
+6. **`debt_limit`**: Accrued COD commission platform debt within platform limit (`outstanding_debt_paise <= max_debit_limit_paise`).
+
+### Seller Payout Account Lifecycle:
+- `GET /api/v1/sellers/me/payout-account`: Retrieve configured payout destination (masked account number/VPA).
+- `PUT /api/v1/sellers/me/payout-account`: Update bank details (`account_number`, `ifsc`, `bank_name`, `beneficiary_name`) or UPI handle (`vpa`, `beneficiary_name`). Always resets `is_verified = false`.
+- `POST /api/v1/sellers/me/payout-account/verify`: Validates beneficiary against RazorpayX Fund Account API, assigns `fund_account_id`, and sets `is_verified = true`.
+- `GET /api/v1/sellers/me/payouts`: Paginated history of automated batch payouts (`pending`, `processing`, `completed`, `on_hold`, `failed`, `reversed`).
+
 ### KYC Submission Implementation Details
 
 - **Presigned Upload Helper:** File uploads never route through the web servers. Files obtain presigned PUT URLs via `POST /api/v1/storage/presigned-url` with `purpose=kyc` or `purpose=product` and upload directly to Cloudflare R2.
-- **Document Payload:** Requires business proof (GSTIN/Trade License), PAN, and government ID (Aadhaar).
+- **Document Payload:** Business proof (GSTIN/Trade License), PAN, and government ID (Aadhaar). Per Migration 000113, category documents are optional on draft; submission requires at least 1 document.
 - **Self-Serve vs Agent Distinction:** Self-serve submissions enter `submitted` status and await Admin approval in `/kyc`. Field Agent submissions via `POST /agent/sellers/:id/kyc/submit` are marked `verified` instantly upon submission, recognizing field agent identity verification.
 
 ---
@@ -295,11 +322,30 @@ const cleanContact = (rawPhone || "")
   .slice(-10);
 ```
 
-### Cash on Delivery (COD) Engine
+### Cash on Delivery (COD) & Delivery Verification Engine
 
-- Uses single ledger accounting.
-- Generates a 6-digit delivery verification OTP.
-- Delivery driver or merchant enters the buyer's OTP upon physical delivery to complete the order and finalize commission reconciliation.
+- Uses single ledger accounting in `commission_entries`.
+- Generates a 6-digit delivery verification OTP (`delivery_otp`) for both online prepaid and cash orders.
+- Merchant enters the buyer's delivery OTP via canonical `POST /api/v1/seller/orders/:id/verify-delivery` (alias `verify-cod`) upon physical handover:
+  - **Online orders:** Transitions order to `delivered`, starts 72-hour dispute hold (`eligible_at = delivered_at + 72h`).
+  - **COD orders:** Transitions order to `delivered`, writes immediate `cod_debit` entry against seller's ledger, and notifies buyer.
+  - **Reputation Award:** Automatically awards +10 points and +5 community score to buyer and seller.
+
+### Single Ledger-Driven Payout Architecture (Migrations 000131-000136)
+
+- **Zero Immediate Payouts:** Individual checkouts never dispatch instant bank transfers.
+- **Escrow & Dispute Hold:**
+  - Product orders: 72 hours post-delivery OTP verification.
+  - Service bookings: 48 hours post-OTP completion.
+  - Uncompleted/cancelled bookings incur zero seller commission penalties.
+- **Weekly Monday Settlement Batch:** Runs every Monday midnight IST, sweeps accrued entries where `eligible_at <= now()`, netting online earnings against COD commission debts. Rollover applies if net balance < ₹200 (20,000 paise).
+- **Seller Platform Debt Repayments:** Accrued COD debts can be cleared anytime via `POST /api/v1/seller/payments/settle-dues`.
+
+### Multi-Item Cart Checkout Engine (`POST /api/v1/cart/checkout`)
+
+- **Single-Seller Cart Rule:** Rejects checkouts mixing multiple sellers with HTTP `409 Conflict`.
+- **Order Charges Snapshot (`order_charges` table):** Snapshots product goods GST, seller shipping profile flat delivery charge & free delivery threshold, COD handling fees, composite supply GST, TCS (0.5%), and platform commission GST (18%).
+- Generates shared `order_group_id` for group payment intents (`POST /buyer/payments/intent` with `order_group_id`).
 
 ---
 

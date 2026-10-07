@@ -474,3 +474,65 @@ export function useAgentSeller(id: string) {
     queryFn: () => api.agent.getSeller(id),
   });
 }
+
+export function useSellerReadiness(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.sellerReadiness,
+    enabled: enabled && session.isAuthenticated(),
+    queryFn: () => api.sellers.getReadiness(),
+  });
+}
+
+export function useSellerPayoutAccount(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.sellerPayoutAccount,
+    enabled: enabled && session.isAuthenticated(),
+    queryFn: () => api.sellers.getPayoutAccount(),
+    retry: false,
+  });
+}
+
+export function useSellerPayouts(page = 1, limit = 20, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.sellerPayouts(page, limit),
+    enabled: enabled && session.isAuthenticated(),
+    queryFn: () => api.sellers.listPayouts(page, limit),
+  });
+}
+
+export function useNotifications(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.notifications,
+    enabled: enabled && session.isAuthenticated(),
+    queryFn: async () => {
+      const res = await api.notifications.list();
+      if (Array.isArray(res)) return res;
+      return res.notifications || [];
+    },
+  });
+}
+
+export function useMatchingDonors(requestId: number | string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.matchingDonors(requestId),
+    enabled: enabled && !!requestId,
+    queryFn: () => api.donations.getMatchingDonors(requestId),
+  });
+}
+
+export function useNearbySellers(lat?: number | null, lng?: number | null, radius = 10) {
+  const hasCoords = typeof lat === "number" && typeof lng === "number";
+  return useQuery({
+    queryKey: queryKeys.nearbySellers(lat ?? undefined, lng ?? undefined, radius),
+    enabled: hasCoords,
+    queryFn: async () => {
+      const res = await api.sellers.getNearby({
+        latitude: lat!,
+        longitude: lng!,
+        radius,
+      });
+      return res.sellers || [];
+    },
+  });
+}
+
