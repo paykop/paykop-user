@@ -58,4 +58,26 @@ describe("uploadViaPresignedUrl", () => {
     const file = new File(["x"], "img.jpg", { type: "image/jpeg" });
     await expect(uploadViaPresignedUrl(file, "product")).rejects.toThrow("Upload failed (403)");
   });
+
+  it("supports purpose: return for evidence uploads", async () => {
+    vi.mocked(api.storage.getPresignedUrl).mockResolvedValue({
+      upload_url: "https://storage.example/upload-return",
+      public_url: "https://cdn.example/return/u123/evidence.jpg",
+      key: "return/u123/evidence.jpg",
+      file_url: "https://cdn.example/return/u123/evidence.jpg",
+    });
+    vi.mocked(global.fetch).mockResolvedValue({ ok: true } as Response);
+
+    const file = new File(["evidence-data"], "evidence.jpg", { type: "image/jpeg" });
+    const res = await uploadViaPresignedUrl(file, "return");
+
+    expect(api.storage.getPresignedUrl).toHaveBeenCalledWith({
+      file_name: "evidence.jpg",
+      content_type: "image/jpeg",
+      size: file.size,
+      purpose: "return",
+    });
+    expect(res.key).toBe("return/u123/evidence.jpg");
+    expect(res.publicUrl).toBe("https://cdn.example/return/u123/evidence.jpg");
+  });
 });

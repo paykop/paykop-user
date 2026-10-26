@@ -8,11 +8,34 @@ import {
   ChevronRight,
   Loader2,
   KeyRound,
+  RotateCcw,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  Truck,
+  Upload,
+  X,
+  ShieldAlert,
 } from "lucide-react";
 import { api } from "@/lib/api/endpoints";
-import { Order } from "@/types";
+import {
+  Order,
+  ReturnRequest,
+  ReturnResolution,
+  ReturnReasonCode,
+} from "@/types";
 import { formatPaise } from "@/lib/money";
 import { toast } from "@/lib/toast";
+import { uploadViaPresignedUrl } from "@/lib/upload/presignedUpload";
+
+const REASON_LABELS: Record<ReturnReasonCode, string> = {
+  damaged: "Damaged / Broken in transit",
+  wrong_item: "Wrong Item / Variant received",
+  not_as_described: "Not as Described on storefront",
+  defective: "Defective / Non-functional",
+  changed_mind: "Changed Mind / No longer needed",
+  other: "Other Reason",
+};
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -25,10 +48,30 @@ export default function OrderDetailPage() {
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
 
-  useEffect(() => {
+  // Returns state
+  const [orderReturns, setOrderReturns] = useState<ReturnRequest[]>([]);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [resolution, setResolution] = useState<ReturnResolution>("refund");
+  const [reasonCode, setReasonCode] = useState<ReturnReasonCode>("damaged");
+  const [reasonText, setReasonText] = useState("");
+  const [returnQty, setReturnQty] = useState(1);
+  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
+  const [submittingReturn, setSubmittingReturn] = useState(false);
+
+  // Escalation state
+  const [showEscalateModal, setShowEscalateModal] = useState(false);
+  const [escalateNote, setEscalateNote] = useState("");
+  const [escalating, setEscalating] = useState(false);
+
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const loadData = () => {
     api.orders
       .getById(orderId)
-      .then((data) => setOrder(data))
+      .then((data) => {
+        setOrder(data);
+        setReturnQty(data.quantity || 1);
+      })
       .catch(() => setOrder(null))
       .finally(() => setLoading(false));
 
@@ -36,6 +79,15 @@ export default function OrderDetailPage() {
       .getPayment(orderId)
       .then((p) => setPaymentStatus(p.status))
       .catch(() => setPaymentStatus(null));
+
+    api.returns
+      .listOrderReturns(orderId)
+      .then((res) => setOrderReturns(res.returns || []))
+      .catch(() => setOrderReturns([]));
+  };
+
+  useEffect(() => {
+    loadData();
   }, [orderId]);
 
   const handleCancelOrder = async () => {
@@ -44,12 +96,7 @@ export default function OrderDetailPage() {
     try {
       await api.orders.cancel(orderId);
       setMsg("Order cancelled successfully.");
-      setLoading(true);
-      api.orders
-        .getById(orderId)
-        .then((data) => setOrder(data))
-        .catch(() => setOrder(null))
-        .finally(() => setLoading(false));
+      loadData();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to cancel order");
     } finally {
@@ -67,6 +114,107 @@ export default function OrderDetailPage() {
       toast.error(err instanceof Error ? err.message : "Failed to regenerate OTP");
     } finally {
       setRegenerating(false);
+    }
+  };
+
+  const handleEvidenceFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const incoming = Array.from(e.target.files);
+    if (evidenceFiles.length + incoming.length > 5) {
+      toast.error("You can attach up to 5 photos as return evidence.");
+      return;
+    }
+    setEvidenceFiles((prev) => [...prev, ...incoming].slice(0, 5));
+  };
+
+  const handleRemoveEvidence = (index: number) => {
+    setEvidenceFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmitReturn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (evidenceFiles.length === 0) {
+      toast.error("At least 1 photo evidence attachment is required.");
+      return;
+    }
+    if (returnQty < 1 || (order && returnQty > order.quantity)) {
+      toast.error(`Return quantity must be between 1 and ${order?.quantity || 1}`);
+      return;
+    }
+
+    setSubmittingReturn(true);
+    try {
+      // 1. Upload proof photos with purpose: "return"
+      const attachments: { file_key: string; file_url: string }[] = [];
+      for (const file of evidenceFiles) {
+        const uploadRes = await uploadViaPresignedUrl(file, "return");
+        attachments.push({
+          file_key: uploadRes.key,
+          file_url: uploadRes.publicUrl,
+        });
+      }
+
+      // 2. Submit return request
+      await api.returns.create(orderId, {
+        resolution,
+        reason_code: reasonCode,
+        reason_text: reasonText.trim() || undefined,
+        quantity: returnQty,
+        attachments,
+      });
+
+      toast.success("Return request submitted successfully!");
+      setShowReturnModal(false);
+      setEvidenceFiles([]);
+      setReasonText("");
+      loadData();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit return request");
+    } finally {
+      setSubmittingReturn(false);
+    }
+  };
+
+  const handleCancelReturn = async (returnId: number) => {
+    if (!confirm("Are you sure you want to cancel this return request?")) return;
+    setActionLoading(true);
+    try {
+      await api.returns.cancel(returnId);
+      toast.success("Return request cancelled");
+      loadData();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to cancel return");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleEscalateReturn = async (returnId: number) => {
+    setEscalating(true);
+    try {
+      await api.returns.escalate(returnId, { note: escalateNote.trim() || undefined });
+      toast.success("Dispute escalated to admin mediation");
+      setShowEscalateModal(false);
+      setEscalateNote("");
+      loadData();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to escalate return");
+    } finally {
+      setEscalating(false);
+    }
+  };
+
+  const handleConfirmReplacement = async (returnId: number) => {
+    if (!confirm("Confirm that you have received and accepted the replacement product?")) return;
+    setActionLoading(true);
+    try {
+      await api.returns.confirmReplacement(returnId);
+      toast.success("Replacement receipt confirmed!");
+      loadData();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to confirm replacement");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -95,6 +243,14 @@ export default function OrderDetailPage() {
     order.product?.images && order.product.images.startsWith("http")
       ? order.product.images
       : null;
+
+  const isDelivered = order.status.toLowerCase() === "delivered";
+  const deliveredAt = order.delivered_at ? new Date(order.delivered_at).getTime() : 0;
+  // 168 hours = 7 days return window
+  const withinReturnWindow = isDelivered && deliveredAt > 0 && Date.now() - deliveredAt <= 168 * 3600 * 1000;
+  const activeReturn = orderReturns.find(
+    (r) => !["cancelled", "rejected", "replaced", "refunded"].includes(r.status)
+  ) || orderReturns[0];
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -130,22 +286,157 @@ export default function OrderDetailPage() {
           </div>
           <p className="text-xs text-gray-500 mt-1">
             Placed on {new Date(order.created_at).toLocaleString()}
+            {order.delivered_at && (
+              <> · Delivered on {new Date(order.delivered_at).toLocaleString()}</>
+            )}
           </p>
         </div>
 
-        {["pending", "paid"].includes(order.status.toLowerCase()) && (
-          <button
-            onClick={handleCancelOrder}
-            disabled={cancelling}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-red-600 border border-red-200 hover:bg-red-50 transition-colors cursor-pointer self-start sm:self-auto"
-          >
-            {cancelling ? "Cancelling..." : "Cancel Order"}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {["pending", "paid"].includes(order.status.toLowerCase()) && (
+            <button
+              onClick={handleCancelOrder}
+              disabled={cancelling}
+              className="px-4 py-2 rounded-xl text-xs font-bold text-red-600 border border-red-200 hover:bg-red-50 transition-colors cursor-pointer self-start sm:self-auto"
+            >
+              {cancelling ? "Cancelling..." : "Cancel Order"}
+            </button>
+          )}
+
+          {isDelivered && withinReturnWindow && !activeReturn && (
+            <button
+              onClick={() => setShowReturnModal(true)}
+              className="px-4 py-2 rounded-xl text-xs font-bold text-[var(--primary)] border border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Return / Replace</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Delivery OTP Banner (Crucial for physical buyer handover) */}
-      {order.delivery_otp && order.status.toLowerCase() !== "cancelled" && (
+      {/* Active Return Banner / Status */}
+      {activeReturn && (
+        <div className="shopcart-card p-6 bg-amber-50/50 border border-amber-200/80 rounded-3xl space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <RotateCcw className="w-5 h-5 text-amber-700 shrink-0" />
+              <h3 className="font-bold text-sm text-gray-900">
+                Return Request #{activeReturn.id} ·{" "}
+                <span className="capitalize">{activeReturn.resolution}</span>
+              </h3>
+            </div>
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                activeReturn.status === "refunded" || activeReturn.status === "replaced"
+                  ? "bg-emerald-100 text-emerald-800"
+                  : activeReturn.status === "rejected"
+                  ? "bg-red-100 text-red-800"
+                  : activeReturn.status === "escalated"
+                  ? "bg-purple-100 text-purple-800"
+                  : "bg-amber-100 text-amber-800"
+              }`}
+            >
+              {activeReturn.status.replace("_", " ")}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs pt-2 border-t border-amber-200/50">
+            <div>
+              <span className="text-gray-500 block">Reason:</span>
+              <span className="font-semibold text-gray-900">
+                {REASON_LABELS[activeReturn.reason_code] || activeReturn.reason_code}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-500 block">Quantity:</span>
+              <span className="font-semibold text-gray-900">{activeReturn.quantity} unit(s)</span>
+            </div>
+            <div>
+              <span className="text-gray-500 block">Refund Amount:</span>
+              <span className="font-semibold text-gray-900">
+                {activeReturn.refund_amount_paise > 0
+                  ? formatPaise(activeReturn.refund_amount_paise)
+                  : "Pending inspection"}
+              </span>
+            </div>
+          </div>
+
+          {activeReturn.reason_text && (
+            <p className="text-xs text-gray-600 bg-white/60 p-3 rounded-xl border border-amber-100">
+              <span className="font-bold text-gray-700">Note: </span>
+              {activeReturn.reason_text}
+            </p>
+          )}
+
+          {activeReturn.decision_note && (
+            <div className="p-3 rounded-xl bg-white/80 border border-amber-200/60 text-xs text-gray-700 space-y-1">
+              <span className="font-bold text-amber-900 block">Decision / Inspection Note:</span>
+              <p>{activeReturn.decision_note}</p>
+            </div>
+          )}
+
+          {/* Attachments preview */}
+          {activeReturn.attachments && activeReturn.attachments.length > 0 && (
+            <div>
+              <span className="text-xs font-bold text-gray-700 block mb-2">Attached Proof:</span>
+              <div className="flex flex-wrap gap-2">
+                {activeReturn.attachments.map((att) => (
+                  <a
+                    key={att.id}
+                    href={att.file_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-16 h-16 rounded-xl overflow-hidden border border-gray-200 bg-white block relative"
+                  >
+                    <MediaThumb src={att.file_url} alt="Proof" className="object-cover" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap items-center gap-2 pt-2">
+            {activeReturn.status === "requested" && (
+              <button
+                type="button"
+                onClick={() => handleCancelReturn(activeReturn.id)}
+                disabled={actionLoading}
+                className="px-3.5 py-1.5 rounded-xl border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel Return
+              </button>
+            )}
+
+            {activeReturn.status === "rejected" && !activeReturn.escalated_at && (
+              <button
+                type="button"
+                onClick={() => setShowEscalateModal(true)}
+                className="px-3.5 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 transition-colors flex items-center gap-1.5"
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>Escalate Dispute</span>
+              </button>
+            )}
+
+            {activeReturn.status === "replacement_dispatched" && (
+              <button
+                type="button"
+                onClick={() => handleConfirmReplacement(activeReturn.id)}
+                disabled={actionLoading}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors flex items-center gap-1.5"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Confirm Replacement Received</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Delivery OTP Banner */}
+      {order.delivery_otp && order.status.toLowerCase() !== "cancelled" && !isDelivered && (
         <div className="p-6 rounded-3xl bg-[var(--primary)] text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
           <div className="flex items-center gap-3 text-center sm:text-left flex-col sm:flex-row">
             <div className="w-12 h-12 rounded-2xl bg-[var(--accent-green)] text-[var(--primary-dark)] flex items-center justify-center">
@@ -211,6 +502,225 @@ export default function OrderDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Return Request Modal */}
+      {showReturnModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <RotateCcw className="w-5 h-5 text-[var(--primary)]" />
+                <h3 className="font-bold text-base text-gray-900">Request Return or Replacement</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReturnModal(false)}
+                className="p-1 rounded-full text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitReturn} className="space-y-4">
+              {/* Resolution */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Resolution Choice *
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setResolution("refund")}
+                    className={`p-3 rounded-2xl border text-left cursor-pointer transition-all ${
+                      resolution === "refund"
+                        ? "border-[var(--primary)] bg-[var(--canvas)] font-bold text-gray-900"
+                        : "border-gray-200 text-gray-600"
+                    }`}
+                  >
+                    <span className="block text-xs font-bold">Refund</span>
+                    <span className="block text-[11px] text-gray-500 mt-0.5">
+                      Back to original payment rail
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setResolution("replacement")}
+                    className={`p-3 rounded-2xl border text-left cursor-pointer transition-all ${
+                      resolution === "replacement"
+                        ? "border-[var(--primary)] bg-[var(--canvas)] font-bold text-gray-900"
+                        : "border-gray-200 text-gray-600"
+                    }`}
+                  >
+                    <span className="block text-xs font-bold">Replacement</span>
+                    <span className="block text-[11px] text-gray-500 mt-0.5">
+                      Merchant ships fresh item
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Reason code */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Reason for Return *
+                </label>
+                <select
+                  value={reasonCode}
+                  onChange={(e) => setReasonCode(e.target.value as ReturnReasonCode)}
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold"
+                >
+                  {Object.entries(REASON_LABELS).map(([code, label]) => (
+                    <option key={code} value={code}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Quantity */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Quantity to Return (Max {order.quantity}) *
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={order.quantity}
+                  value={returnQty}
+                  onChange={(e) => setReturnQty(Math.min(order.quantity, Math.max(1, Number(e.target.value))))}
+                  className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                />
+              </div>
+
+              {/* Reason Explanation */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Detailed Explanation (Optional)
+                </label>
+                <textarea
+                  rows={3}
+                  value={reasonText}
+                  onChange={(e) => setReasonText(e.target.value)}
+                  placeholder="Explain any defects or packaging condition upon arrival..."
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+                />
+              </div>
+
+              {/* Photo Evidence Attachments (1 to 5) */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Photo Evidence (1–5 photos required) *
+                </label>
+                <p className="text-[11px] text-gray-500 mb-2">
+                  Attach clear photos showing damage, defect, or incorrect label.
+                </p>
+
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {evidenceFiles.map((file, idx) => (
+                    <div
+                      key={idx}
+                      className="relative w-16 h-16 rounded-xl border border-gray-200 overflow-hidden bg-gray-100 flex items-center justify-center text-[10px] text-gray-600 font-bold p-1 text-center"
+                    >
+                      <span>{file.name.slice(0, 8)}...</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveEvidence(idx)}
+                        className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full p-0.5"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {evidenceFiles.length < 5 && (
+                    <label className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-300 hover:border-[var(--primary)] flex flex-col items-center justify-center cursor-pointer text-gray-400 hover:text-[var(--primary)] transition-colors">
+                      <Upload className="w-5 h-5" />
+                      <span className="text-[9px] font-bold mt-0.5">Upload</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleEvidenceFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowReturnModal(false)}
+                  className="px-4 py-2 rounded-full border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingReturn}
+                  className="px-6 py-2.5 rounded-full shopcart-btn-primary text-xs font-bold disabled:opacity-50 flex items-center gap-2 cursor-pointer shadow-sm"
+                >
+                  {submittingReturn && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Submit Return Request</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Escalate Modal */}
+      {showEscalateModal && activeReturn && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5 text-purple-600" />
+                <h3 className="font-bold text-base text-gray-900">Escalate to Admin Mediation</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEscalateModal(false)}
+                className="p-1 rounded-full text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-600">
+              If the seller rejected your valid return claim, submit your dispute statement for platform admin review.
+            </p>
+
+            <textarea
+              rows={4}
+              value={escalateNote}
+              onChange={(e) => setEscalateNote(e.target.value)}
+              placeholder="State why the seller rejection is unwarranted..."
+              className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs"
+            />
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowEscalateModal(false)}
+                className="px-4 py-2 rounded-full border border-gray-200 text-xs font-semibold text-gray-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={escalating}
+                onClick={() => handleEscalateReturn(activeReturn.id)}
+                className="px-6 py-2.5 rounded-full bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2 shadow-sm"
+              >
+                {escalating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Escalate Dispute</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

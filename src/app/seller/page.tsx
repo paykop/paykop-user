@@ -308,6 +308,12 @@ export default function SellerPage() {
               >
                 Orders
               </Link>
+              <Link
+                href="/seller/returns"
+                className="px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20"
+              >
+                Customer Returns
+              </Link>
               {!kycVerified && (
                 <Link
                   href="/seller/kyc"

@@ -536,3 +536,43 @@ export function useNearbySellers(lat?: number | null, lng?: number | null, radiu
   });
 }
 
+export function useBuyerReturns(page = 1, limit = 20) {
+  return useQuery({
+    queryKey: queryKeys.buyerReturns(page, limit),
+    enabled: session.isAuthenticated(),
+    queryFn: () => api.returns.listBuyer({ page, limit }),
+  });
+}
+
+export function useBuyerReturn(id: number | string) {
+  return useQuery({
+    queryKey: queryKeys.buyerReturn(id),
+    enabled: session.isAuthenticated() && !!id,
+    queryFn: () => api.returns.getBuyerReturn(id),
+  });
+}
+
+export function useOrderReturns(orderId: number | string) {
+  return useQuery({
+    queryKey: queryKeys.orderReturns(orderId),
+    enabled: session.isAuthenticated() && !!orderId,
+    queryFn: () => api.returns.listOrderReturns(orderId),
+  });
+}
+
+export function useSellerReturns(status?: string, page = 1, limit = 20) {
+  return useQuery({
+    queryKey: queryKeys.sellerReturns(status, page, limit),
+    enabled: session.isAuthenticated(),
+    queryFn: () => api.returns.listSeller({ status, page, limit }),
+  });
+}
+
+export function useSellerReturn(id: number | string) {
+  return useQuery({
+    queryKey: queryKeys.sellerReturn(id),
+    enabled: session.isAuthenticated() && !!id,
+    queryFn: () => api.returns.getSellerReturn(id),
+  });
+}
+

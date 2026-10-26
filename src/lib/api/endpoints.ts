@@ -9,7 +9,6 @@ import {
   ServiceItem,
   ServiceCategory,
   DonationCampaign,
-  OrganizationPublic,
   OrganizationPublicDetail,
   OrganizationListResponse,
   CreateDonationIntentRequest,
@@ -71,13 +70,19 @@ import {
   FuelAssistanceResponse,
   InAppNotification,
   NotificationListResponse,
-  RegisterDeviceTokenRequest,
   MatchingDonorsResponse,
   PendingCallOffer,
   CallLogItem,
   TurnCredentialsResponse,
   NearbySellerItem,
   NearbySellersResponse,
+  DeliveryScope,
+  CreateReturnInput,
+  ReturnRequest,
+  ReturnListResponse,
+  SellerRejectReturnInput,
+  SellerReceiveReturnInput,
+  BuyerEscalateReturnInput,
 } from "@/types";
 
 export const api = {
@@ -381,6 +386,7 @@ export const api = {
   payments: {
     createIntent: (data: {
       order_id?: number;
+      order_group_id?: string;
       booking_id?: number;
       campaign_id?: number;
       subscription_id?: number;
@@ -391,6 +397,7 @@ export const api = {
         method: "POST",
         body: JSON.stringify({
           order_id: data.order_id,
+          order_group_id: data.order_group_id,
           booking_id: data.booking_id,
           campaign_id: data.campaign_id,
           subscription_id: data.subscription_id,
@@ -697,17 +704,26 @@ export const api = {
     getProductById: (id: number | string) => apiClient<Product>(`/seller/products/${id}`),
     createProduct: (data: {
       title: string;
-      description: string;
+      description?: string;
       price: number; // in paise
       stock: number;
-      category_id: number;
+      category_id?: number;
+      category?: string;
       images: string[];
+      delivery_scope?: DeliveryScope;
+      is_cod_allowed?: boolean;
     }) =>
       apiClient<Product>("/seller/products", {
         method: "POST",
         body: JSON.stringify(data),
       }),
-    updateProduct: (id: number | string, data: Partial<Product>) =>
+    updateProduct: (
+      id: number | string,
+      data: Partial<Product> & {
+        delivery_scope?: DeliveryScope;
+        is_cod_allowed?: boolean;
+      }
+    ) =>
       apiClient<Product>(`/seller/products/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
@@ -1000,6 +1016,57 @@ export const api = {
     get: (id: string) =>
       apiClient<PublicProfileResponse>(`/profiles/${id}`, {
         skipAuth: true,
+      }),
+  },
+
+  // ── Product Returns, Replacements & Disputes ───────────────────────────────
+  returns: {
+    create: (orderId: number | string, data: CreateReturnInput, idempotencyKey?: string) =>
+      apiClient<ReturnRequest>(`/buyer/orders/${orderId}/returns`, {
+        method: "POST",
+        body: JSON.stringify(data),
+        idempotencyKey,
+      }),
+    listOrderReturns: (orderId: number | string) =>
+      apiClient<ReturnListResponse>(`/buyer/orders/${orderId}/returns`),
+    listBuyer: (params?: { page?: number; limit?: number }) =>
+      apiClient<ReturnListResponse>("/buyer/returns", { params }),
+    getBuyerReturn: (id: number | string) =>
+      apiClient<ReturnRequest>(`/buyer/returns/${id}`),
+    cancel: (id: number | string) =>
+      apiClient<ReturnRequest>(`/buyer/returns/${id}/cancel`, {
+        method: "POST",
+      }),
+    escalate: (id: number | string, data?: BuyerEscalateReturnInput) =>
+      apiClient<ReturnRequest>(`/buyer/returns/${id}/escalate`, {
+        method: "POST",
+        body: JSON.stringify(data || {}),
+      }),
+    confirmReplacement: (id: number | string) =>
+      apiClient<ReturnRequest>(`/buyer/returns/${id}/confirm-replacement`, {
+        method: "POST",
+      }),
+    listSeller: (params?: { status?: string; page?: number; limit?: number }) =>
+      apiClient<ReturnListResponse>("/seller/returns", { params }),
+    getSellerReturn: (id: number | string) =>
+      apiClient<ReturnRequest>(`/seller/returns/${id}`),
+    approveSeller: (id: number | string) =>
+      apiClient<ReturnRequest>(`/seller/returns/${id}/approve`, {
+        method: "POST",
+      }),
+    rejectSeller: (id: number | string, data: SellerRejectReturnInput) =>
+      apiClient<ReturnRequest>(`/seller/returns/${id}/reject`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    receiveSeller: (id: number | string, data: SellerReceiveReturnInput) =>
+      apiClient<ReturnRequest>(`/seller/returns/${id}/receive`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    dispatchReplacementSeller: (id: number | string) =>
+      apiClient<ReturnRequest>(`/seller/returns/${id}/dispatch-replacement`, {
+        method: "POST",
       }),
   },
 };

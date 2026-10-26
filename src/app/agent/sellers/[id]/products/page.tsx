@@ -14,7 +14,7 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { api } from "@/lib/api/endpoints";
-import { Product, ProductCategory, AgentSellerSummary } from "@/types";
+import { Product, ProductCategory, AgentSellerSummary, DeliveryScope } from "@/types";
 import { formatPaise, rupeesToPaise } from "@/lib/money";
 import { uploadViaPresignedUrl } from "@/lib/upload/presignedUpload";
 import { AgentGate } from "@/components/agent/AgentGate";
@@ -42,6 +42,8 @@ function AgentProductsCatalogueContent() {
   const [priceRupees, setPriceRupees] = useState("");
   const [stock, setStock] = useState("10");
   const [categoryName, setCategoryName] = useState("");
+  const [deliveryScope, setDeliveryScope] = useState<DeliveryScope>("pan_india");
+  const [isCodAllowed, setIsCodAllowed] = useState(true);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState("");
 
@@ -101,6 +103,8 @@ function AgentProductsCatalogueContent() {
     setDescription("");
     setPriceRupees("");
     setStock("10");
+    setDeliveryScope("pan_india");
+    setIsCodAllowed(true);
     setImageFile(null);
     setImageUrl("");
     setErrorMsg("");
@@ -146,6 +150,8 @@ function AgentProductsCatalogueContent() {
         stock: Number(stock) || 0,
         category: categoryName,
         images: imgs,
+        delivery_scope: deliveryScope,
+        is_cod_allowed: isCodAllowed,
       });
 
       toast.success(`Published product "${title.trim()}" successfully!`);
@@ -396,6 +402,41 @@ function AgentProductsCatalogueContent() {
                   ))}
                   {categories.length === 0 && <option value="General Merchandise">General Merchandise</option>}
                 </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Delivery Scope
+                  </label>
+                  <select
+                    value={deliveryScope}
+                    onChange={(e) => setDeliveryScope(e.target.value as DeliveryScope)}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium"
+                  >
+                    <option value="pan_india">Pan India</option>
+                    <option value="state_wide">State Wide</option>
+                    <option value="district_wide">District Wide</option>
+                    <option value="local_only">Local Delivery Only</option>
+                  </select>
+                </div>
+
+                <div className="pt-5 sm:pt-4">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isCodAllowed}
+                      onChange={(e) => setIsCodAllowed(e.target.checked)}
+                      className="w-4 h-4 rounded text-[var(--primary)] focus:ring-[var(--primary)]"
+                    />
+                    <span className="text-xs font-semibold text-gray-700">
+                      Allow Cash on Delivery (COD)
+                    </span>
+                  </label>
+                  <p className="text-[10px] text-gray-400 mt-0.5 ml-6">
+                    If unchecked, buyers must pay online.
+                  </p>
+                </div>
               </div>
 
               <div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Loader2, Package, CheckCircle2 } from "lucide-react";
+import { ChevronRight, Loader2, Package, CheckCircle2, RotateCcw } from "lucide-react";
 import { useSellerOrders } from "@/lib/queries/hooks";
 import { api } from "@/lib/api/endpoints";
 import { formatPaise } from "@/lib/money";
@@ -13,7 +13,7 @@ export default function SellerOrdersPage() {
   const [verifyingId, setVerifyingId] = useState<number | null>(null);
   const [otpInput, setOtpInput] = useState<Record<number, string>>({});
 
-  const handleVerifyCod = async (orderId: number) => {
+  const handleVerifyDelivery = async (orderId: number) => {
     const otp = otpInput[orderId]?.trim();
     if (!otp) {
       toast.error("Enter delivery OTP");
@@ -21,8 +21,8 @@ export default function SellerOrdersPage() {
     }
     setVerifyingId(orderId);
     try {
-      await api.seller.verifyCod(orderId, otp);
-      toast.success("COD verified");
+      await api.seller.verifyDelivery(orderId, otp);
+      toast.success("Delivery verified successfully!");
       refetch();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Verification failed");
@@ -49,9 +49,18 @@ export default function SellerOrdersPage() {
         <span className="font-semibold text-gray-900">Orders</span>
       </nav>
 
-      <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-        <Package className="w-6 h-6 text-[var(--primary)]" /> Incoming Orders
-      </h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
+          <Package className="w-6 h-6 text-[var(--primary)]" /> Incoming Orders
+        </h1>
+        <Link
+          href="/seller/returns"
+          className="px-4 py-2 rounded-xl text-xs font-bold text-[var(--primary)] border border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-colors self-start sm:self-auto flex items-center gap-1.5"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span>Customer Returns</span>
+        </Link>
+      </div>
 
       {orders.length === 0 ? (
         <p className="text-sm text-gray-500 py-12 text-center">No orders yet.</p>
@@ -86,12 +95,12 @@ export default function SellerOrdersPage() {
                   />
                   <button
                     type="button"
-                    onClick={() => handleVerifyCod(order.id)}
+                    onClick={() => handleVerifyDelivery(order.id)}
                     disabled={verifyingId === order.id}
                     className="px-4 py-2 rounded-full shopcart-btn-primary text-xs font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    Verify COD
+                    Verify Delivery (OTP)
                   </button>
                 </div>
               )}

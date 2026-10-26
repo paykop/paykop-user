@@ -78,6 +78,8 @@ export interface Review {
   user_email?: string;
 }
 
+export type DeliveryScope = "local_only" | "district_wide" | "state_wide" | "pan_india";
+
 export interface Product {
   id: number;
   seller_id: string;
@@ -91,6 +93,8 @@ export interface Product {
   category_id?: number;
   images: string[];
   status: string;
+  delivery_scope?: DeliveryScope;
+  is_cod_allowed?: boolean;
   reviews?: Review[];
   average_rating: number;
   review_count: number;
@@ -263,8 +267,23 @@ export interface BloodRequest {
   created_at: string;
 }
 
+export interface CategoryFeedItem {
+  id?: number;
+  category_type: "service" | "product" | string;
+  title: string;
+  subtitle?: string;
+  icon?: string;
+  iconColor?: string;
+  bgColor?: string;
+  image_url?: string;
+  image?: string;
+  type?: string;
+  listing_count?: number;
+}
+
 export interface HomeFeedResponse {
   banners: Banner[];
+  categories?: CategoryFeedItem[];
   services: {
     id: number;
     title: string;
@@ -383,9 +402,20 @@ export interface Order {
   };
 }
 
+export interface PaymentIntentRequest {
+  order_id?: number;
+  order_group_id?: string;
+  booking_id?: number;
+  campaign_id?: number;
+  subscription_id?: number;
+  provider?: string;
+  currency?: string;
+}
+
 export interface PaymentIntentResponse {
   id: number;
   order_id?: number;
+  order_group_id?: string;
   booking_id?: number;
   campaign_id?: number;
   subscription_id?: number;
@@ -646,6 +676,8 @@ export interface AgentCreateProductRequest {
   stock: number;
   category: string;
   images?: string[];
+  delivery_scope?: DeliveryScope;
+  is_cod_allowed?: boolean;
 }
 
 export interface AgentCreateServiceRequest {
@@ -980,6 +1012,11 @@ export interface CartCheckoutRequest {
   payment_method?: "online" | "cash" | string;
   address_id?: string;
   cart_item_ids?: number[];
+  cart_item_id?: number;
+  item_ids?: number[];
+  item_id?: number;
+  product_ids?: number[];
+  product_id?: number;
 }
 
 export interface CartCheckoutResponse {
@@ -1103,5 +1140,92 @@ export interface NearbySellerItem {
 
 export interface NearbySellersResponse {
   sellers: NearbySellerItem[];
+}
+
+// ── Product Returns, Replacements & Dispute Mediation ────────────────────────
+
+export type ReturnResolution = "refund" | "replacement";
+
+export type ReturnReasonCode =
+  | "damaged"
+  | "wrong_item"
+  | "not_as_described"
+  | "defective"
+  | "changed_mind"
+  | "other";
+
+export type ReturnStatus =
+  | "requested"
+  | "approved"
+  | "rejected"
+  | "escalated"
+  | "received"
+  | "refunded"
+  | "replacement_dispatched"
+  | "replaced"
+  | "cancelled";
+
+export interface ReturnAttachmentInput {
+  file_key: string;
+  file_url: string;
+}
+
+export interface CreateReturnInput {
+  resolution: ReturnResolution;
+  reason_code: ReturnReasonCode;
+  reason_text?: string;
+  quantity: number;
+  attachments: ReturnAttachmentInput[];
+}
+
+export interface ReturnAttachment {
+  id: number;
+  file_key: string;
+  file_url: string;
+  created_at: string;
+}
+
+export interface ReturnRequest {
+  id: number;
+  order_id: number;
+  buyer_id: string;
+  seller_id: string;
+  resolution: ReturnResolution;
+  reason_code: ReturnReasonCode;
+  reason_text?: string | null;
+  quantity: number;
+  status: ReturnStatus;
+  refund_amount_paise: number;
+  payment_id?: number | null;
+  inspection_ok?: boolean | null;
+  inspection_note?: string | null;
+  decision_note?: string | null;
+  decided_by?: string | null;
+  escalated_at?: string | null;
+  decided_at?: string | null;
+  received_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  attachments?: ReturnAttachment[];
+}
+
+export interface ReturnListResponse {
+  returns: ReturnRequest[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface SellerRejectReturnInput {
+  reason: string;
+}
+
+export interface SellerReceiveReturnInput {
+  inspection_ok: boolean;
+  inspection_note?: string;
+}
+
+export interface BuyerEscalateReturnInput {
+  note?: string;
 }
 

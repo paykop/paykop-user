@@ -44,6 +44,8 @@ export default function SellerProductsPage() {
   const [categoryId, setCategoryId] = useState<number>(1);
   const [imageUrl, setImageUrl] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [deliveryScope, setDeliveryScope] = useState<"local_only" | "district_wide" | "state_wide" | "pan_india">("pan_india");
+  const [isCodAllowed, setIsCodAllowed] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -120,6 +122,8 @@ export default function SellerProductsPage() {
         stock: Number(stock) || 10,
         category_id: categoryId,
         images: imgs,
+        delivery_scope: deliveryScope,
+        is_cod_allowed: isCodAllowed,
       });
 
       setShowAddModal(false);
@@ -127,6 +131,8 @@ export default function SellerProductsPage() {
       setDescription("");
       setPriceRupees("");
       setImageUrl("");
+      setDeliveryScope("pan_india");
+      setIsCodAllowed(true);
       fetchProducts({ showLoading: true });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to create product listing";
@@ -353,6 +359,36 @@ export default function SellerProductsPage() {
                   ))}
                   {categories.length === 0 && <option value={1}>General Merchandise</option>}
                 </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Delivery Scope
+                  </label>
+                  <select
+                    value={deliveryScope}
+                    onChange={(e) => setDeliveryScope(e.target.value as typeof deliveryScope)}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium"
+                  >
+                    <option value="pan_india">Pan-India Delivery</option>
+                    <option value="state_wide">State-wide Delivery</option>
+                    <option value="district_wide">District-wide Delivery</option>
+                    <option value="local_only">Local Hyperlocal Only</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center pt-5 sm:pt-6">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-700 select-none">
+                    <input
+                      type="checkbox"
+                      checked={isCodAllowed}
+                      onChange={(e) => setIsCodAllowed(e.target.checked)}
+                      className="rounded border-gray-300 text-[var(--primary)] focus:ring-[var(--primary)] w-4 h-4"
+                    />
+                    <span>Allow Cash on Delivery (COD)</span>
+                  </label>
+                </div>
               </div>
 
               <div>

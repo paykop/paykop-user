@@ -72,42 +72,73 @@ export function LocationModal() {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
 
+        let detectedCity = "";
+        let formatted = "";
+
+        // 1. Try backend reverse geocoding API
         try {
           const geoRes = await api.location.reverseGeocode(lat, lng);
-          const detectedCity = geoRes.city || geoRes.state || "Current Location";
-          const formatted = geoRes.formatted_address || `${detectedCity}, India`;
+          detectedCity = geoRes.city || geoRes.state || "";
+          formatted = geoRes.formatted_address || (detectedCity ? `${detectedCity}, India` : "");
+        } catch {
+          // Backend geocoder not configured or returned 503 - proceed to fallback
+        }
 
-          setLocation({
-            latitude: lat,
-            longitude: lng,
-            cityName: detectedCity,
-            formattedAddress: formatted,
-          });
+        // 2. Client-side reverse geocoding fallback if backend is offline/unconfigured
+        if (!detectedCity || detectedCity === "GPS Location") {
+          try {
+            const fallbackRes = await fetch(
+              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`
+            );
+            if (fallbackRes.ok) {
+              const data = await fallbackRes.json();
+              detectedCity = data.city || data.locality || data.principalSubdivision || "";
+              if (detectedCity) {
+                formatted = `${detectedCity}, ${data.principalSubdivision || "India"}`;
+              }
+            }
+          } catch {
+            // Ignore external geocoding network error
+          }
+        }
 
-          // Sync with user profile if logged in
-          const currentUser = session.getUser();
-          if (currentUser?.id) {
-            api.users.updateCurrentLocation(currentUser.id, {
+        // 3. Proximity fallback to nearest supported popular city
+        if (!detectedCity || detectedCity === "GPS Location") {
+          let nearest = POPULAR_CITIES[0];
+          let minDistance = Infinity;
+          for (const c of POPULAR_CITIES) {
+            const dist = Math.hypot(c.lat - lat, c.lng - lng);
+            if (dist < minDistance) {
+              minDistance = dist;
+              nearest = c;
+            }
+          }
+          detectedCity = nearest.name;
+          formatted = `${nearest.name}, ${nearest.state}, India`;
+        }
+
+        setLocation({
+          latitude: lat,
+          longitude: lng,
+          cityName: detectedCity,
+          formattedAddress: formatted || `${detectedCity}, India`,
+        });
+
+        // Sync with user profile if logged in
+        const currentUser = session.getUser();
+        if (currentUser?.id) {
+          api.users
+            .updateCurrentLocation(currentUser.id, {
               latitude: lat,
               longitude: lng,
               city: detectedCity,
-              formatted_address: formatted,
-            }).catch(() => {});
-          }
-
-          setIsLocating(false);
-          closeModal();
-        } catch {
-          // Fallback if reverse geocode service is offline
-          setLocation({
-            latitude: lat,
-            longitude: lng,
-            cityName: "GPS Location",
-            formattedAddress: `Lat: ${lat.toFixed(3)}, Lng: ${lng.toFixed(3)}`,
-          });
-          setIsLocating(false);
-          closeModal();
+              formatted_address: formatted || `${detectedCity}, India`,
+            })
+            .catch(() => {});
         }
+
+        setIsLocating(false);
+        closeModal();
       },
       () => {
         setIsLocating(false);

@@ -17,6 +17,7 @@ import {
   FileText,
   Shield,
   LogOut,
+  RotateCcw,
 } from "lucide-react";
 import { api } from "@/lib/api/endpoints";
 import { session } from "@/lib/auth/session";
@@ -217,7 +218,18 @@ export default function AccountPage() {
             <MessageSquare className="w-5 h-5" />
           </div>
           <div className="font-bold text-sm text-gray-900">Support</div>
-          <div className="text-xs text-gray-400">Help tickets & order issues</div>
+          <div className="text-xs text-gray-400">Help center & queries</div>
+        </Link>
+
+        <Link
+          href="/account/returns"
+          className="shopcart-card p-5 bg-white hover:border-[var(--primary)] transition-all space-y-2 group"
+        >
+          <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+            <RotateCcw className="w-5 h-5" />
+          </div>
+          <div className="font-bold text-sm text-gray-900">Returns & Refunds</div>
+          <div className="text-xs text-gray-400">Track returns & replacements</div>
         </Link>
       </div>
 

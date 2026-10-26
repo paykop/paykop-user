@@ -294,15 +294,18 @@ function CheckoutContent() {
 
               {/* Cash on Delivery */}
               <label
-                className={`p-4 rounded-2xl border flex items-start gap-3 cursor-pointer transition-all ${
-                  paymentMethod === "cash"
-                    ? "border-[var(--primary)] bg-[var(--canvas)] shadow-xs"
-                    : "border-gray-200 hover:border-gray-300"
+                className={`p-4 rounded-2xl border flex items-start gap-3 transition-all ${
+                  product?.is_cod_allowed === false
+                    ? "opacity-50 cursor-not-allowed bg-gray-50 border-gray-200"
+                    : paymentMethod === "cash"
+                    ? "border-[var(--primary)] bg-[var(--canvas)] shadow-xs cursor-pointer"
+                    : "border-gray-200 hover:border-gray-300 cursor-pointer"
                 }`}
               >
                 <input
                   type="radio"
                   name="payment_method"
+                  disabled={product?.is_cod_allowed === false}
                   checked={paymentMethod === "cash"}
                   onChange={() => setPaymentMethod("cash")}
                   className="mt-1 text-[var(--primary)]"
@@ -312,7 +315,9 @@ function CheckoutContent() {
                     Cash on Delivery (COD)
                   </span>
                   <span className="text-[11px] text-gray-500 block mt-0.5">
-                    Pay upon physical delivery
+                    {product?.is_cod_allowed === false
+                      ? "Not available for this item"
+                      : "Pay upon physical delivery"}
                   </span>
                 </div>
               </label>

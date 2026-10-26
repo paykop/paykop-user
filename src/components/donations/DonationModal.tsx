@@ -24,6 +24,13 @@ interface DonationModalProps {
   campaignTitle?: string;
 }
 
+function generateDonationKey(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `don_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
 export function DonationModal({
   isOpen,
   onClose,
@@ -46,18 +53,12 @@ export function DonationModal({
 
   // Prefill from authenticated session if available
   useEffect(() => {
-    if (session.isAuthenticated()) {
+    if (isOpen && session.isAuthenticated()) {
       const user = session.getUser();
       if (user) {
-        if (!donorName && (user.first_name || user.last_name)) {
-          setDonorName(`${user.first_name || ""} ${user.last_name || ""}`.trim());
-        }
-        if (!donorPhone && user.phone) {
-          setDonorPhone(user.phone);
-        }
-        if (!donorEmail && user.email) {
-          setDonorEmail(user.email);
-        }
+        setDonorName((prev) => prev || `${user.first_name || ""} ${user.last_name || ""}`.trim());
+        setDonorPhone((prev) => prev || user.phone || "");
+        setDonorEmail((prev) => prev || user.email || "");
       }
     }
   }, [isOpen]);
@@ -102,9 +103,7 @@ export function DonationModal({
         ? donorPhone
         : `+91${donorPhone.replace(/\D/g, "").slice(-10)}`;
 
-      const idempotencyKey = typeof crypto !== "undefined" && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `don_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      const idempotencyKey = generateDonationKey();
 
       const intent = await api.donations.createIntent(
         {

@@ -13,7 +13,7 @@ export interface UploadResult {
  */
 export async function uploadViaPresignedUrl(
   file: File,
-  purpose: "kyc" | "product" | "support" | string = "product"
+  purpose: "kyc" | "product" | "support" | "return" | string = "product"
 ): Promise<UploadResult> {
   const presign = await api.storage.getPresignedUrl({
     file_name: file.name,

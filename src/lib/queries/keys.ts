@@ -54,4 +54,10 @@ export const queryKeys = {
   callLogs: ["call-logs"] as const,
   nearbySellers: (lat?: number, lng?: number, radius?: number) =>
     ["nearby-sellers", lat, lng, radius] as const,
+  buyerReturns: (page?: number, limit?: number) => ["buyer-returns", page, limit] as const,
+  buyerReturn: (id: number | string) => ["buyer-return", id] as const,
+  orderReturns: (orderId: number | string) => ["order-returns", orderId] as const,
+  sellerReturns: (status?: string, page?: number, limit?: number) =>
+    ["seller-returns", status, page, limit] as const,
+  sellerReturn: (id: number | string) => ["seller-return", id] as const,
 };

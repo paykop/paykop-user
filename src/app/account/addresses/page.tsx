@@ -184,7 +184,7 @@ export default function AddressesPage() {
                 type="button"
                 onClick={() => setLabel(lbl)}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  label === lbl
+                  label.toLowerCase() === lbl.toLowerCase()
                     ? "bg-[var(--primary)] text-white"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
@@ -306,9 +306,13 @@ export default function AddressesPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="p-1.5 rounded-lg bg-gray-100 text-gray-700">
-                      {addr.label === "Home" ? <Home className="w-3.5 h-3.5" /> : <Building className="w-3.5 h-3.5" />}
+                      {addr.label?.toLowerCase() === "home" ? (
+                        <Home className="w-3.5 h-3.5" />
+                      ) : (
+                        <Building className="w-3.5 h-3.5" />
+                      )}
                     </span>
-                    <span className="font-bold text-sm text-gray-900">{addr.label}</span>
+                    <span className="font-bold text-sm text-gray-900 capitalize">{addr.label}</span>
                   </div>
 
                   {addr.is_default && (
