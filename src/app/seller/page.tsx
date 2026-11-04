@@ -145,8 +145,9 @@ export default function SellerPage() {
             contact: user?.phone || "",
           },
           description: `Subscription: ${plan.name}`,
-          onPaid: () => {
+          onPaid: async () => {
             toast.info("Payment submitted! Confirming subscription...");
+            await refreshSellerState();
             let attempts = 0;
             const timer = setInterval(async () => {
               attempts += 1;

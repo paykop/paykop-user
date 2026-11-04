@@ -363,19 +363,15 @@ export function useBloodRequests() {
 }
 
 export function useSearch(params: SearchParams) {
-  const q = params.q?.trim() ?? "";
   return useQuery({
     queryKey: queryKeys.search(params as Record<string, unknown>),
-    enabled: q.length >= 1,
     queryFn: () => api.search.query(params),
   });
 }
 
 export function useSearchProducts(params: SearchParams) {
-  const q = params.q?.trim() ?? "";
   return useQuery({
     queryKey: queryKeys.searchProducts(params as Record<string, unknown>),
-    enabled: q.length >= 1,
     queryFn: () => api.search.products(params),
   });
 }

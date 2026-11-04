@@ -1,9 +1,10 @@
-import { CachedSellerPaymentIntent } from "@/lib/agent/onboarding";
+import { api } from "@/lib/api/endpoints";
 
 interface RazorpaySuccessResponse {
   razorpay_payment_id: string;
   razorpay_order_id?: string;
   razorpay_signature?: string;
+  razorpay_subscription_id?: string;
 }
 
 interface RazorpayFailureResponse {
@@ -87,7 +88,7 @@ export async function openSellerSubscriptionCheckout(opts: {
   payment: SubscriptionCheckoutPayment;
   prefill: SellerCheckoutPrefill;
   description?: string;
-  onPaid: () => void;
+  onPaid: (response?: RazorpaySuccessResponse) => void | Promise<void>;
   onDismiss?: () => void;
   onFailure?: (error: unknown) => void;
 }): Promise<void> {
@@ -123,8 +124,28 @@ export async function openSellerSubscriptionCheckout(opts: {
       contact: cleanContact,
     },
     theme: { color: "#1e3a8a" },
-    handler: async () => {
-      opts.onPaid();
+    handler: async (response: RazorpaySuccessResponse) => {
+      try {
+        const providerRef =
+          opts.payment.provider_ref ||
+          opts.payment.razorpay_subscription_id ||
+          response.razorpay_subscription_id ||
+          opts.payment.razorpay_order_id ||
+          response.razorpay_order_id ||
+          "";
+
+        if (providerRef && response.razorpay_payment_id) {
+          await api.payments.confirm({
+            provider_ref: providerRef,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_order_id: response.razorpay_order_id || "",
+            razorpay_signature: response.razorpay_signature || "",
+          });
+        }
+      } catch (confirmErr) {
+        console.warn("Direct subscription confirmation failed, falling back to polling/webhook:", confirmErr);
+      }
+      await opts.onPaid(response);
     },
     modal: {
       ondismiss: () => {

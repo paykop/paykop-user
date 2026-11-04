@@ -179,6 +179,7 @@ export interface DonationIntentResponse {
   razorpay_order_id: string;
   amount_paise: number;
   currency: string;
+  key_id?: string;
 }
 
 export interface DonationStatusResponse {

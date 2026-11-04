@@ -31,6 +31,31 @@ function generateDonationKey(): string {
   return `don_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function ensureRazorpayScript(): Promise<void> {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("Razorpay requires a browser"));
+  }
+  if (window.Razorpay) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+    );
+    if (existing) {
+      existing.addEventListener("load", () => resolve());
+      existing.addEventListener("error", () => reject(new Error("Failed to load Razorpay SDK")));
+      if (window.Razorpay) resolve();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load Razorpay SDK"));
+    document.body.appendChild(script);
+  });
+}
+
 export function DonationModal({
   isOpen,
   onClose,
@@ -38,11 +63,12 @@ export function DonationModal({
   campaignId,
   campaignTitle,
 }: DonationModalProps) {
+  const initialUser = typeof window !== "undefined" && session.isAuthenticated() ? session.getUser() : null;
   const [amountRupees, setAmountRupees] = useState<number>(1000);
   const [customRupees, setCustomRupees] = useState<string>("");
-  const [donorName, setDonorName] = useState<string>("");
-  const [donorPhone, setDonorPhone] = useState<string>("");
-  const [donorEmail, setDonorEmail] = useState<string>("");
+  const [donorName, setDonorName] = useState<string>(() => (initialUser ? `${initialUser.first_name || ""} ${initialUser.last_name || ""}`.trim() : ""));
+  const [donorPhone, setDonorPhone] = useState<string>(() => (initialUser?.phone || ""));
+  const [donorEmail, setDonorEmail] = useState<string>(() => (initialUser?.email || ""));
   const [taxEligible, setTaxEligible] = useState<boolean>(false);
   const [donorPan, setDonorPan] = useState<string>("");
 
@@ -50,18 +76,6 @@ export function DonationModal({
   const [polling, setPolling] = useState<boolean>(false);
   const [completedDonation, setCompletedDonation] = useState<DonationStatusResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
-
-  // Prefill from authenticated session if available
-  useEffect(() => {
-    if (isOpen && session.isAuthenticated()) {
-      const user = session.getUser();
-      if (user) {
-        setDonorName((prev) => prev || `${user.first_name || ""} ${user.last_name || ""}`.trim());
-        setDonorPhone((prev) => prev || user.phone || "");
-        setDonorEmail((prev) => prev || user.email || "");
-      }
-    }
-  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -119,11 +133,12 @@ export function DonationModal({
         idempotencyKey
       );
 
-      const rzpKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      const rzpKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || intent.key_id;
       if (!rzpKey) {
         throw new Error("Payment gateway is not configured.");
       }
 
+      await ensureRazorpayScript();
       if (!window.Razorpay) {
         throw new Error("Razorpay checkout is loading. Please try again in a few seconds.");
       }
