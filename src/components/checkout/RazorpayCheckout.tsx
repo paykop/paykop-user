@@ -48,6 +48,7 @@ declare global {
 
 interface RazorpayCheckoutProps {
   orderId?: number;
+  orderGroupId?: string;
   bookingId?: number;
   campaignId?: number;
   subscriptionId?: number;
@@ -57,6 +58,7 @@ interface RazorpayCheckoutProps {
   description?: string;
   onSuccess: (paymentId: string) => void;
   onFailure?: (error: unknown) => void;
+  onDismiss?: () => void;
   buttonText?: string;
   buttonClassName?: string;
   disabled?: boolean;
@@ -64,6 +66,7 @@ interface RazorpayCheckoutProps {
 
 export function RazorpayCheckout({
   orderId,
+  orderGroupId,
   bookingId,
   campaignId,
   subscriptionId,
@@ -72,6 +75,7 @@ export function RazorpayCheckout({
   description,
   onSuccess,
   onFailure,
+  onDismiss,
   buttonText = "Pay with Razorpay",
   buttonClassName = "w-full py-4 px-6 rounded-full shopcart-btn-primary font-bold text-sm flex items-center justify-center gap-2 shadow-lg cursor-pointer",
   disabled = false,
@@ -104,7 +108,7 @@ export function RazorpayCheckout({
       return;
     }
 
-    if (!orderId && !bookingId && !campaignId && !subscriptionId) {
+    if (!orderId && !orderGroupId && !bookingId && !campaignId && !subscriptionId) {
       toast.error("Payment requires a linked order, booking, campaign, or subscription.");
       return;
     }
@@ -120,6 +124,7 @@ export function RazorpayCheckout({
       // Amount is resolved server-side from the linked entity — never send client amount.
       const intent = await api.payments.createIntent({
         order_id: orderId,
+        order_group_id: orderGroupId,
         booking_id: bookingId,
         campaign_id: campaignId,
         subscription_id: subscriptionId,
@@ -181,6 +186,7 @@ export function RazorpayCheckout({
         modal: {
           ondismiss: function () {
             setLoading(false);
+            if (onDismiss) onDismiss();
           },
         },
       };

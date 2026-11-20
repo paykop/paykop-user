@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, MapPin, ShieldCheck, Truck, Wrench, HandHeart, Droplet } from "lucide-react";
+import { ArrowRight, MapPin, ShieldCheck, Truck, Wrench, HandHeart, Droplet, Sprout } from "lucide-react";
 import { useLocationStore } from "@/lib/location/store";
 import { useHomeFeed, useNearbyProducts } from "@/lib/queries/hooks";
 import { ProductCard } from "@/components/product/ProductCard";
@@ -12,6 +12,7 @@ import { SkeletonGrid } from "@/components/ui/SkeletonGrid";
 import { MediaThumb } from "@/components/ui/MediaThumb";
 import { ShelfBlank, padToMinSlots } from "@/components/ui/ShelfBlank";
 import { useTour } from "@/lib/tours/useTour";
+import { openFarmModal } from "@/lib/farm/launch";
 
 function bannerHref(banner: { type?: string; link_type?: string; link_id?: string; link_url?: string }) {
   if (banner.link_url) return banner.link_url;
@@ -139,6 +140,63 @@ export default function HomePage() {
               )}
             </div>
           )}
+        </Container>
+      </section>
+
+      {/* Paykop Farm Dedicated App Banner / Architecture Isolation */}
+      <section>
+        <Container>
+          <div className="rounded-3xl bg-gradient-to-r from-[#1B5E20] via-[#2E7D32] to-[#388E3C] text-white p-6 sm:p-10 shadow-lg relative overflow-hidden">
+            <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-64 h-64 bg-white/5 rounded-full blur-2xl pointer-events-none" />
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              <div className="lg:col-span-8 space-y-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-emerald-100 text-xs font-bold uppercase tracking-wider">
+                  <Sprout className="w-3.5 h-3.5 text-emerald-300" />
+                  <span>Separate Application for Agricultural Produce</span>
+                </div>
+                <h2 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight">
+                  Looking for Fresh Farm Harvest &amp; Crops?<br />
+                  <span className="text-emerald-200">Meet Paykop Farm.</span>
+                </h2>
+                <p className="text-sm sm:text-base text-emerald-100/90 max-w-2xl leading-relaxed">
+                  To ensure maximum harvest freshness, weight-based metric purchases (per kg/grams), and direct farmer logistics, all agricultural produce is isolated in our dedicated <strong>Paykop Farm</strong> app. Everything else—retail, home services, blood donations &amp; community causes—stays right here in your single Paykop app!
+                </p>
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => openFarmModal()}
+                    className="px-6 py-3.5 rounded-full bg-white text-[#1B5E20] hover:bg-emerald-50 font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md transition-all cursor-pointer"
+                  >
+                    <span>Open Paykop Farm App</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                  <div className="text-xs text-emerald-200 flex flex-wrap items-center gap-2 px-2">
+                    <span>✓ 0% GST Produce</span>
+                    <span>•</span>
+                    <span>✓ Direct From Farmers</span>
+                    <span>•</span>
+                    <span>✓ Single Sign-On</span>
+                  </div>
+                </div>
+              </div>
+              <div className="lg:col-span-4 bg-white/10 backdrop-blur-xs rounded-2xl p-5 border border-white/15 space-y-3">
+                <div className="text-xs font-bold uppercase tracking-wider text-emerald-200 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-300" />
+                  <span>Domain Isolation</span>
+                </div>
+                <div className="text-xs text-white/90 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <span className="font-bold text-emerald-200">Paykop:</span>
+                    <span className="text-white/80">Retail, fashion, electronics &amp; local services in this single app.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="font-bold text-emerald-200">Farm App:</span>
+                    <span className="text-white/80">Fresh harvest, perishables, and kg-measured agri produce.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </Container>
       </section>
 

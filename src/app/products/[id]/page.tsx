@@ -16,7 +16,10 @@ import {
   ChevronRight,
   Loader2,
   Check,
+  Sprout,
+  Scale,
 } from "lucide-react";
+import { openFarmModal } from "@/lib/farm/launch";
 import { parseProductImages } from "@/lib/media";
 import { formatPaise } from "@/lib/money";
 import { session } from "@/lib/auth/session";
@@ -154,9 +157,16 @@ export default function ProductDetailPage() {
         <div className="lg:col-span-6 space-y-6">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold uppercase tracking-widest text-[var(--primary)] bg-emerald-50 px-3 py-1 rounded-full">
-                {product.category || "General"}
-              </span>
+              {product.vertical === "farm" ? (
+                <span className="text-xs font-extrabold uppercase tracking-widest text-[#1B5E20] bg-emerald-100/80 px-3 py-1 rounded-full flex items-center gap-1.5">
+                  <Sprout className="w-3.5 h-3.5" />
+                  <span>Farm Produce · Dedicated App</span>
+                </span>
+              ) : (
+                <span className="text-xs font-extrabold uppercase tracking-widest text-[var(--primary)] bg-emerald-50 px-3 py-1 rounded-full">
+                  {product.category || "General"}
+                </span>
+              )}
 
               <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 bg-gray-50 px-3 py-1 rounded-full">
                 <Star className="w-4 h-4 fill-[#ffc220] text-[#ffc220]" />
@@ -178,18 +188,64 @@ export default function ProductDetailPage() {
             </h1>
           </div>
 
+          {/* Farm Produce Notice & Metadata if Farm Vertical */}
+          {product.vertical === "farm" && (
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200/90 space-y-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-950 uppercase tracking-wider">
+                <Sprout className="w-4 h-4 text-emerald-700" />
+                <span>Agricultural Produce Notice</span>
+              </div>
+              <p className="text-xs text-emerald-800 leading-relaxed">
+                This item is part of the <strong>Paykop Farm</strong> agricultural vertical. For precision weight-based measurement (kg/grams), harvest freshness guarantees, and direct-from-farmer delivery, this item is ordered exclusively through the Paykop Farm application.
+              </p>
+              <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] text-emerald-900 border-t border-emerald-200/60">
+                {product.farm_name && (
+                  <div>
+                    <span className="text-emerald-700 font-medium">Farm / FPO:</span>{" "}
+                    <strong>{product.farm_name}</strong>
+                  </div>
+                )}
+                {product.farming_method && (
+                  <div>
+                    <span className="text-emerald-700 font-medium">Farming Method:</span>{" "}
+                    <strong className="capitalize">{product.farming_method}</strong>
+                  </div>
+                )}
+                {product.origin_location && (
+                  <div>
+                    <span className="text-emerald-700 font-medium">Origin:</span>{" "}
+                    <strong>{product.origin_location}</strong>
+                  </div>
+                )}
+                {product.shelf_life_days && (
+                  <div>
+                    <span className="text-emerald-700 font-medium">Shelf Life:</span>{" "}
+                    <strong>{product.shelf_life_days} Days</strong>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Price */}
           <div className="p-4 rounded-2xl bg-[var(--canvas)] border border-gray-200 space-y-1">
             <div className="flex flex-wrap items-baseline gap-2 sm:gap-3">
               <span className="text-3xl sm:text-4xl font-black text-[var(--primary)]">
                 {formatPaise(product.price)}
               </span>
+              {product.vertical === "farm" && (
+                <span className="text-sm font-bold text-slate-600">
+                  /{product.unit || "kg"}
+                </span>
+              )}
               <span className="text-xs font-semibold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md">
-                Inclusive of all taxes
+                {product.is_tax_exempt || product.vertical === "farm" ? "0% GST Exempt" : "Inclusive of all taxes"}
               </span>
             </div>
             <p className="text-xs text-gray-500">
-              Direct checkout available for 1 product item with instant Razorpay verification.
+              {product.vertical === "farm"
+                ? "Weight-based precision ordering available on Paykop Farm app."
+                : "Direct checkout available for 1 product item with instant Razorpay verification."}
             </p>
           </div>
 
@@ -204,24 +260,45 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Quantity & Action Buttons */}
-          <div className="space-y-4 pt-2 border-t border-gray-100">
-            <div className="flex items-center gap-4">
-              <span className="text-xs font-bold text-gray-700">Quantity:</span>
-              <div className="flex items-center rounded-xl border border-gray-200 bg-gray-50 p-1">
-                <button
-                  type="button"
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  disabled={product.stock <= 0}
-                  className="w-8 h-8 rounded-lg bg-white text-gray-700 font-bold flex items-center justify-center hover:bg-gray-100 shadow-xs cursor-pointer disabled:opacity-40"
-                >
-                  -
-                </button>
-                <span className="w-10 text-center font-black text-sm text-gray-900">
-                  {quantity}
+          {product.vertical === "farm" ? (
+            <div className="space-y-4 pt-2 border-t border-gray-100">
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 space-y-2">
+                <span className="font-bold block text-sm">
+                  🌾 Farm Produce Vertical Isolation
                 </span>
-                <button
-                  type="button"
-                  onClick={() =>
+                <p className="text-emerald-800 leading-relaxed">
+                  To prevent mixing standard retail parcels with delicate perishable produce, this harvest item cannot be checked out in the general retail cart. Orders are placed directly on the <strong>Paykop Farm</strong> app with your same Paykop account.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => openFarmModal({ productId: product.id })}
+                className="w-full py-4 px-6 rounded-full bg-[#1B5E20] hover:bg-[#2E7D32] text-white font-black text-sm flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+              >
+                <Sprout className="w-4 h-4 text-emerald-300" />
+                <span>Open &amp; Order in Paykop Farm App</span>
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4 pt-2 border-t border-gray-100">
+              <div className="flex items-center gap-4">
+                <span className="text-xs font-bold text-gray-700">Quantity:</span>
+                <div className="flex items-center rounded-xl border border-gray-200 bg-gray-50 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    disabled={product.stock <= 0}
+                    className="w-8 h-8 rounded-lg bg-white text-gray-700 font-bold flex items-center justify-center hover:bg-gray-100 shadow-xs cursor-pointer disabled:opacity-40"
+                  >
+                    -
+                  </button>
+                  <span className="w-10 text-center font-black text-sm text-gray-900">
+                    {quantity}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
                     setQuantity((q) =>
                       product.stock > 0 ? Math.min(product.stock, q + 1) : q
                     )
@@ -276,6 +353,7 @@ export default function ProductDetailPage() {
               </button>
             </div>
           </div>
+          )}
 
           {/* Seller / Store Card */}
           <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -83,6 +83,7 @@ import {
   SellerRejectReturnInput,
   SellerReceiveReturnInput,
   BuyerEscalateReturnInput,
+  HandoffResponse,
 } from "@/types";
 
 export const api = {
@@ -146,6 +147,12 @@ export const api = {
     logoutAllDevices: () =>
       apiClient<{ message: string }>("/auth/logout-all-devices", {
         method: "POST",
+      }),
+
+    createHandoff: (targetApp = "farm") =>
+      apiClient<HandoffResponse>("/auth/handoff", {
+        method: "POST",
+        body: JSON.stringify({ target_app: targetApp }),
       }),
   },
 
@@ -238,7 +245,8 @@ export const api = {
   },
 
   categories: {
-    getAll: () => apiClient<ProductCategory[]>("/categories", { skipAuth: true }),
+    getAll: (params?: { vertical?: string }) =>
+      apiClient<ProductCategory[]>("/categories", { params, skipAuth: true }),
     getById: (id: number | string) =>
       apiClient<ProductCategory & { products?: Product[] }>(`/categories/${id}`, { skipAuth: true }),
   },
@@ -258,6 +266,7 @@ export const api = {
       lng?: number;
       radius?: number;
       search?: string;
+      vertical?: string;
     }) =>
       apiClient<{
         products: Product[];
@@ -373,6 +382,10 @@ export const api = {
     getById: (id: number | string) => apiClient<Order>(`/buyer/orders/${id}`),
     cancel: (id: number | string) =>
       apiClient<{ message: string }>(`/buyer/orders/${id}/cancel`, {
+        method: "POST",
+      }),
+    cancelGroup: (groupId: string) =>
+      apiClient<{ message: string }>(`/buyer/orders/group/${groupId}/cancel`, {
         method: "POST",
       }),
     regenerateOtp: (id: number | string) =>

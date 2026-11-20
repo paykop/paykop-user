@@ -11,7 +11,9 @@ import {
   ShieldCheck,
   Truck,
   Info,
+  Sprout,
 } from "lucide-react";
+import { openFarmModal } from "@/lib/farm/launch";
 import { CartItem } from "@/types";
 import { formatPaise } from "@/lib/money";
 import { firstImage } from "@/lib/media";
@@ -68,6 +70,7 @@ export default function CartPage() {
 
   const items = cart?.items || [];
   const totalPrice = cart?.total_price || 0;
+  const hasFarmItem = items.some((item) => item.product?.vertical === "farm" || item.vertical === "farm");
 
   return (
     <Container className="py-8 space-y-8">
@@ -112,6 +115,27 @@ export default function CartPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           <div className="lg:col-span-8 space-y-4">
+            {hasFarmItem && (
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-start gap-2.5">
+                  <Sprout className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block text-sm">Farm Produce Detected in Cart</span>
+                    <span className="text-amber-800">
+                      Agricultural produce requires specialized weight-based logistics and cannot be mixed with retail goods. Please checkout farm items on the Paykop Farm app.
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openFarmModal()}
+                  className="px-4 py-2 rounded-xl bg-[#1B5E20] hover:bg-[#2E7D32] text-white font-bold text-xs shrink-0 cursor-pointer shadow-xs transition-colors"
+                >
+                  Open Paykop Farm App
+                </button>
+              </div>
+            )}
+
             <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-3">
               <Info className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
               <div className="space-y-0.5">
@@ -181,13 +205,24 @@ export default function CartPage() {
                       </div>
 
                       <div className="flex items-center gap-2 w-full sm:w-auto sm:justify-end">
-                        <Link
-                          href={`/checkout?product_id=${item.product_id}&quantity=${item.quantity}`}
-                          className="flex-1 sm:flex-none px-4 py-2.5 min-h-[44px] rounded-xl shopcart-btn-primary text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
-                        >
-                          <Zap className="w-3.5 h-3.5 text-[var(--accent-green)] shrink-0" />
-                          <span>Checkout item</span>
-                        </Link>
+                        {item.product?.vertical === "farm" ? (
+                          <button
+                            type="button"
+                            onClick={() => openFarmModal({ productId: item.product_id })}
+                            className="flex-1 sm:flex-none px-4 py-2.5 min-h-[44px] rounded-xl bg-[#1B5E20] hover:bg-[#2E7D32] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                          >
+                            <Sprout className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
+                            <span>Farm App Checkout</span>
+                          </button>
+                        ) : (
+                          <Link
+                            href={`/checkout?product_id=${item.product_id}&quantity=${item.quantity}`}
+                            className="flex-1 sm:flex-none px-4 py-2.5 min-h-[44px] rounded-xl shopcart-btn-primary text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
+                          >
+                            <Zap className="w-3.5 h-3.5 text-[var(--accent-green)] shrink-0" />
+                            <span>Checkout item</span>
+                          </Link>
+                        )}
 
                         <button
                           onClick={() => handleRemove(item.id)}

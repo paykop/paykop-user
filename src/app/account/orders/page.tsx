@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { MediaThumb } from "@/components/ui/MediaThumb";
-import { Package, ChevronRight, Loader2, Clock, CheckCircle2, XCircle, Truck } from "lucide-react";
+import { Package, ChevronRight, Loader2, Clock, CheckCircle2, XCircle, Truck, Sprout, Box } from "lucide-react";
 import { Order } from "@/types";
 import { formatPaise } from "@/lib/money";
 import { useOrders } from "@/lib/queries/hooks";
@@ -13,14 +13,30 @@ export default function OrdersPage() {
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case "paid":
-      case "delivered":
+      case "completed":
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-bold uppercase">
             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
             <span>{status}</span>
           </span>
         );
+      case "delivered":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[11px] font-extrabold uppercase">
+            <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+            <span>Delivered</span>
+          </span>
+        );
+      case "accepted":
+      case "packed":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 text-[11px] font-bold uppercase">
+            <Box className="w-3 h-3 text-blue-600" />
+            <span>{status}</span>
+          </span>
+        );
       case "shipped":
+      case "dispatched":
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[var(--primary-subtle)] text-[var(--primary)] text-[11px] font-bold uppercase">
             <Truck className="w-3 h-3 text-[var(--primary-light)]" />
@@ -28,10 +44,19 @@ export default function OrdersPage() {
           </span>
         );
       case "cancelled":
+      case "failed":
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-50 text-red-800 text-[11px] font-bold uppercase">
             <XCircle className="w-3 h-3 text-red-600" />
-            <span>Cancelled</span>
+            <span>{status}</span>
+          </span>
+        );
+      case "refunded":
+      case "partially_refunded":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-800 text-[11px] font-bold uppercase">
+            <CheckCircle2 className="w-3 h-3 text-purple-600" />
+            <span>Refunded</span>
           </span>
         );
       default:
@@ -105,13 +130,26 @@ export default function OrdersPage() {
                     <MediaThumb src={img} alt={title} className="object-cover" />
                   </div>
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[11px] font-bold text-gray-400">Order #{order.id}</span>
+                      {order.vertical === "farm" && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-[10px] font-bold">
+                          <Sprout className="w-3 h-3 text-emerald-700" />
+                          <span>Paykop Farm</span>
+                        </span>
+                      )}
                       {getStatusBadge(order.status)}
                     </div>
                     <h3 className="font-bold text-sm text-gray-900 line-clamp-1">{title}</h3>
+                    {order.farm_name && (
+                      <p className="text-[11px] text-emerald-800 font-medium">Farm: {order.farm_name}</p>
+                    )}
                     <div className="text-xs text-gray-500">
-                      Quantity: {order.quantity} | Total:{" "}
+                      Quantity:{" "}
+                      {order.vertical === "farm" && order.quantity_milli
+                        ? `${order.quantity_milli / 1000} ${order.unit || "kg"}`
+                        : order.quantity}{" "}
+                      | Total:{" "}
                       <strong className="text-gray-900 font-bold">
                         {formatPaise(order.total_price)}
                       </strong>

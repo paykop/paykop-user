@@ -77,6 +77,22 @@ export function Footer() {
             </h4>
             <ul className="space-y-2 text-sm text-white/70">
               <li><Link href="/categories" className="hover:text-white">Categories</Link></li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      window.dispatchEvent(new CustomEvent("paykop_open_farm_modal"));
+                    }
+                  }}
+                  className="hover:text-emerald-300 text-emerald-400 flex items-center gap-1.5 cursor-pointer font-medium"
+                >
+                  <span>Paykop Farm</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-700 font-bold">
+                    Separate App
+                  </span>
+                </button>
+              </li>
               <li><Link href="/services" className="hover:text-white">Services</Link></li>
               <li><Link href="/cart" className="hover:text-white">Cart</Link></li>
               <li><Link href="/account/orders" className="hover:text-white">Orders</Link></li>

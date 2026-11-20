@@ -39,6 +39,9 @@ export interface RequestOTPResponse {
 export interface ProductCategory {
   id: number;
   name: string;
+  vertical?: "paykop" | "farm" | string;
+  return_window_hours?: number;
+  is_perishable?: boolean;
   parent_id?: number;
   image_url?: string;
   children?: ProductCategory[];
@@ -93,6 +96,18 @@ export interface Product {
   category_id?: number;
   images: string[];
   status: string;
+  vertical?: "paykop" | "farm" | string;
+  unit?: string;
+  pack_size?: number;
+  min_order_qty_milli?: number;
+  qty_step_milli?: number;
+  stock_milli?: number;
+  farm_name?: string;
+  origin_location?: string;
+  harvest_date?: string;
+  shelf_life_days?: number;
+  farming_method?: string;
+  is_tax_exempt?: boolean;
   delivery_scope?: DeliveryScope;
   is_cod_allowed?: boolean;
   reviews?: Review[];
@@ -347,11 +362,19 @@ export interface Address {
   status?: string;
 }
 
+export interface HandoffResponse {
+  code: string;
+  expires_in: number;
+  target_app: string;
+}
+
 export interface CartItem {
   id: number;
   user_id: string;
   product_id: number;
   quantity: number;
+  quantity_milli?: number;
+  vertical?: "paykop" | "farm" | string;
   price: number; // paise
   product: {
     id: number;
@@ -361,6 +384,10 @@ export interface CartItem {
     images_json?: string;
     image?: string;
     stock: number;
+    stock_milli?: number;
+    unit?: string;
+    vertical?: "paykop" | "farm" | string;
+    farm_name?: string;
     seller_id: string;
   };
 }
@@ -369,6 +396,7 @@ export interface CartResponse {
   items: CartItem[];
   total_items: number;
   total_price: number; // paise
+  vertical?: "paykop" | "farm" | string;
 }
 
 export interface WishlistItem {
@@ -386,11 +414,18 @@ export interface Order {
   product_id: number;
   quantity: number;
   total_price: number; // paise
-  status: "pending" | "paid" | "shipped" | "delivered" | "cancelled" | string;
+  status: "pending" | "paid" | "accepted" | "packed" | "shipped" | "dispatched" | "delivered" | "cancelled" | "refunded" | string;
+  vertical?: "paykop" | "farm" | string;
+  quantity_milli?: number;
+  unit?: string;
+  farm_name?: string | null;
   order_group_id?: string | null;
   address_id?: string | null;
   delivery_otp?: string | null;
+  packed_at?: string | null;
+  dispatched_at?: string | null;
   delivered_at?: string | null;
+  return_window_closes_at?: string | null;
   created_at: string;
   updated_at: string;
   product?: {
@@ -400,6 +435,9 @@ export interface Order {
     price: number; // paise
     category: string;
     images?: string;
+    vertical?: "paykop" | "farm" | string;
+    farm_name?: string;
+    unit?: string;
   };
 }
 
@@ -746,6 +784,7 @@ export interface SearchParams {
   q?: string;
   type?: "product" | "service" | "donation" | "user" | string;
   category?: string;
+  vertical?: "paykop" | "farm" | string;
   min_price?: number;
   max_price?: number;
   location?: string;
@@ -1195,6 +1234,8 @@ export interface ReturnRequest {
   reason_code: ReturnReasonCode;
   reason_text?: string | null;
   quantity: number;
+  quantity_milli?: number;
+  vertical?: "paykop" | "farm" | string;
   status: ReturnStatus;
   refund_amount_paise: number;
   payment_id?: number | null;

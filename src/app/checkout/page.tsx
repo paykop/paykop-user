@@ -13,7 +13,9 @@ import {
   CreditCard,
   ArrowRight,
   AlertCircle,
+  Sprout,
 } from "lucide-react";
+import { openFarmModal } from "@/lib/farm/launch";
 import { api } from "@/lib/api/endpoints";
 import { session } from "@/lib/auth/session";
 import { Product, Address, Order } from "@/types";
@@ -38,6 +40,7 @@ function CheckoutContent() {
 
   // Created Order state for online payment
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
+  const [isCancellingOrder, setIsCancellingOrder] = useState(false);
 
   useEffect(() => {
     if (!session.isAuthenticated()) {
@@ -85,6 +88,10 @@ function CheckoutContent() {
   const totalPaise = subtotalPaise + deliveryFeePaise;
 
   const handlePlaceCODOrder = async () => {
+    if (product?.vertical === "farm") {
+      openFarmModal({ productId: product.id });
+      return;
+    }
     if (!selectedAddressId) {
       setErrorMsg("Please select or add a delivery address.");
       return;
@@ -109,6 +116,10 @@ function CheckoutContent() {
   };
 
   const handleCreateOrderForOnline = async () => {
+    if (product?.vertical === "farm") {
+      openFarmModal({ productId: product.id });
+      return;
+    }
     if (!selectedAddressId) {
       setErrorMsg("Please select or add a delivery address.");
       return;
@@ -128,6 +139,20 @@ function CheckoutContent() {
       setErrorMsg(err instanceof Error ? err.message : "Failed to create order for payment.");
     } finally {
       setIsPlacingOrder(false);
+    }
+  };
+
+  const handleCancelPendingOrder = async () => {
+    if (!createdOrder) return;
+    setIsCancellingOrder(true);
+    try {
+      await api.orders.cancel(createdOrder.id);
+      toast.success("Order cancelled. Items returned to stock and cart.");
+      setCreatedOrder(null);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to cancel order");
+    } finally {
+      setIsCancellingOrder(false);
     }
   };
 
@@ -180,6 +205,34 @@ function CheckoutContent() {
           Verified 2-hour delivery directly from the merchant
         </p>
       </div>
+
+      {product.vertical === "farm" && (
+        <div className="p-6 rounded-3xl bg-gradient-to-r from-emerald-50 via-teal-50 to-green-50 border border-emerald-200 space-y-4 shadow-xs">
+          <div className="flex items-center gap-2 text-emerald-950 font-black text-base">
+            <Sprout className="w-5 h-5 text-emerald-700" />
+            <span>Agricultural Produce Order Isolation</span>
+          </div>
+          <p className="text-xs sm:text-sm text-emerald-800 leading-relaxed max-w-2xl">
+            This item is fresh agricultural produce from <strong>{product.farm_name || "Paykop Farm Network"}</strong>. To ensure direct farmer payout settlement, metric quantity weighing (per kg/grams), and specialized perishable fulfillment, farm orders are processed exclusively on the <strong>Paykop Farm</strong> app.
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => openFarmModal({ productId: product.id })}
+              className="px-6 py-3 rounded-full bg-[#1B5E20] hover:bg-[#2E7D32] text-white font-bold text-xs flex items-center gap-2 shadow-sm cursor-pointer transition-colors"
+            >
+              <Sprout className="w-4 h-4 text-emerald-300" />
+              <span>Continue on Paykop Farm App</span>
+            </button>
+            <Link
+              href="/"
+              className="px-5 py-3 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Return to Store
+            </Link>
+          </div>
+        </div>
+      )}
 
       {errorMsg && (
         <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
@@ -388,6 +441,14 @@ function CheckoutContent() {
                     }}
                     buttonText={`Pay ${formatPaise(totalPaise)} via Razorpay`}
                   />
+                  <button
+                    type="button"
+                    onClick={handleCancelPendingOrder}
+                    disabled={isCancellingOrder}
+                    className="w-full text-center text-xs text-red-600 hover:text-red-700 font-bold hover:underline py-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {isCancellingOrder ? "Cancelling order..." : "Cancel order & release item"}
+                  </button>
                 </div>
               ) : (
                 <button

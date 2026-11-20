@@ -21,7 +21,9 @@ import {
   Heart,
   Calendar,
   ExternalLink,
+  Sprout,
 } from "lucide-react";
+import { openFarmModal, isAgriSearchQuery } from "@/lib/farm/launch";
 import { parseProductImages } from "@/lib/media";
 import { ProductCard } from "@/components/product/ProductCard";
 import { useSearch, useSearchProducts, useCategories } from "@/lib/queries/hooks";
@@ -87,6 +89,7 @@ function SearchContent() {
   const { data: productSearch, isLoading: loadingProducts } = useSearchProducts({
     q: q || undefined,
     category: category || undefined,
+    vertical: "paykop",
     page,
     limit: 20,
   });
@@ -343,6 +346,38 @@ function SearchContent() {
           </div>
         </div>
       </div>
+
+      {/* Agricultural Produce Notification for Farm Queries */}
+      {isAgriSearchQuery(q) && (
+        <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-emerald-50 via-teal-50 to-green-50 border border-emerald-200/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#1B5E20] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+              <Sprout className="w-5 h-5 text-emerald-300" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm text-emerald-950">
+                  Looking for fresh agricultural produce or crops?
+                </span>
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900 uppercase tracking-wider">
+                  Separate Farm App
+                </span>
+              </div>
+              <p className="text-xs text-emerald-800 leading-relaxed max-w-2xl">
+                Fresh farm harvests, vegetables, fruits, crops, and grains are served exclusively on our dedicated <strong>Paykop Farm</strong> app for weight-based metric fulfillment and direct farmer sourcing. All retail, home services, and community causes remain here in Paykop.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => openFarmModal()}
+            className="px-5 py-2.5 rounded-full bg-[#1B5E20] hover:bg-[#2E7D32] text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer shrink-0"
+          >
+            <span>Search in Paykop Farm</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Main Results View */}
       {loading ? (

@@ -59,11 +59,11 @@ export function useNearbyProducts(opts: {
   });
 }
 
-export function useCategories() {
+export function useCategories(vertical?: string) {
   return useQuery({
-    queryKey: queryKeys.categories,
+    queryKey: [...queryKeys.categories, vertical || "all"],
     queryFn: async () => {
-      const data = await api.categories.getAll();
+      const data = await api.categories.getAll(vertical ? { vertical } : undefined);
       return Array.isArray(data) ? data : [];
     },
   });
