@@ -1,0 +1,190 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --primary: #1e3a8a;
+    --primary-dark: #172554;
+    --primary-light: #2563eb;
+    --primary-subtle: #eff6ff;
+    --accent-green: #00c689;
+    --accent-yellow: #ffc220;
+    --accent-orange: #ff7043;
+    --canvas: #f8fafc;
+    --surface: #ffffff;
+    --surface-muted: #f1f5f9;
+    --border-color: #e2e8f0;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --radius-card: 1rem;
+    --radius-pill: 9999px;
+  }
+
+  body {
+    background-color: var(--canvas);
+    color: var(--text-main);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a {
+    color: inherit;
+  }
+}
+
+.shopcart-btn-primary {
+  background-color: var(--primary);
+  color: #ffffff;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.shopcart-btn-primary:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.25);
+}
+
+.shopcart-btn-accent {
+  background-color: var(--accent-green);
+  color: #052e16;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.shopcart-btn-accent:hover {
+  background-color: #00ad77;
+  transform: translateY(-1px);
+}
+
+.shopcart-btn-outline {
+  border: 1.5px solid var(--primary);
+  color: var(--primary);
+  background: transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.shopcart-btn-outline:hover {
+  background-color: var(--primary-subtle);
+}
+
+.shopcart-card {
+  background-color: #ffffff;
+  border-radius: 1rem;
+  border: 1px solid #e2e8f0;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.shopcart-card:hover {
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+}
+
+.shopcart-pill {
+  background-color: var(--surface-muted);
+  border-radius: 9999px;
+  color: var(--text-main);
+  transition: all 0.2s ease;
+}
+.shopcart-pill:hover,
+.shopcart-pill.active {
+  background-color: var(--primary);
+  color: #ffffff;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Driver.js Paykop Popover Theme (Preserves default z-index of 1,000,000,000) */
+.driver-popover.paykop-tour-popover {
+  background-color: #ffffff;
+  color: var(--text-main);
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+  box-shadow: 0 20px 30px -10px rgba(15, 23, 42, 0.25), 0 10px 15px -5px rgba(15, 23, 42, 0.1);
+  border: 1px solid #e2e8f0;
+  max-width: 340px;
+}
+
+.driver-popover.paykop-tour-popover .driver-popover-title {
+  font-family: var(--font-inter), sans-serif;
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--primary);
+  margin-bottom: 0.375rem;
+}
+
+.driver-popover.paykop-tour-popover .driver-popover-description {
+  font-family: var(--font-inter), sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #475569;
+  margin-bottom: 1rem;
+}
+
+.driver-popover.paykop-tour-popover .driver-popover-progress-text {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.driver-popover.paykop-tour-popover .driver-popover-footer button {
+  font-family: var(--font-inter), sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 9999px;
+  padding: 0.375rem 0.875rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.driver-popover.paykop-tour-popover .driver-popover-next-btn {
+  background-color: var(--primary) !important;
+  color: #ffffff !important;
+  border: none !important;
+  text-shadow: none !important;
+}
+.driver-popover.paykop-tour-popover .driver-popover-next-btn:hover {
+  background-color: var(--primary-dark) !important;
+}
+
+.driver-popover.paykop-tour-popover .driver-popover-prev-btn {
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+  border: 1px solid #e2e8f0 !important;
+  text-shadow: none !important;
+}
+.driver-popover.paykop-tour-popover .driver-popover-prev-btn:hover {
+  background-color: #e2e8f0 !important;
+}
+
+.driver-popover.paykop-tour-popover .driver-popover-close-btn {
+  color: #94a3b8;
+  font-size: 1.125rem;
+}
+.driver-popover.paykop-tour-popover .driver-popover-close-btn:hover {
+  color: #0f172a;
+}
+
