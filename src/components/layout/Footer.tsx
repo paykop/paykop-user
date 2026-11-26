@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { ShieldCheck, Truck, Headphones, RotateCcw } from "lucide-react";
+import { openFarmModal } from "@/lib/farm/launch";
 
 const supportPhone = process.env.NEXT_PUBLIC_SUPPORT_PHONE;
 
@@ -80,11 +83,7 @@ export function Footer() {
               <li>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (typeof window !== "undefined") {
-                      window.dispatchEvent(new CustomEvent("paykop_open_farm_modal"));
-                    }
-                  }}
+                  onClick={() => openFarmModal()}
                   className="hover:text-emerald-300 text-emerald-400 flex items-center gap-1.5 cursor-pointer font-medium"
                 >
                   <span>Paykop Farm</span>
