@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, MapPin, ShieldCheck, Truck, Wrench, HandHeart, Droplet, Sprout } from "lucide-react";
 import { useLocationStore } from "@/lib/location/store";
-import { useHomeFeed, useNearbyProducts } from "@/lib/queries/hooks";
+import { useHomeFeed, useNearbyProducts, useFarmProducts } from "@/lib/queries/hooks";
 import { ProductCard } from "@/components/product/ProductCard";
 import { formatPaise } from "@/lib/money";
 import { Container } from "@/components/ui/Container";
@@ -33,6 +33,7 @@ export default function HomePage() {
     radius: 15,
     limit: 8,
   });
+  const { data: farmProducts = [], isLoading: farmProductsLoading } = useFarmProducts(8);
 
   useTour("buyer_home", { autoStart: true, delayMs: 1200 });
 
@@ -138,6 +139,50 @@ export default function HomePage() {
                   <ShelfBlank key={key} className="h-72" />
                 )
               )}
+            </div>
+          )}
+        </Container>
+      </section>
+
+      {/* Farm Fresh Harvest Section */}
+      <section>
+        <Container>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold mb-1">
+                <Sprout className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Direct From Farmers</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Farm Fresh Harvest</h2>
+              <p className="text-xs sm:text-sm text-slate-500">Naturally grown crops and fresh produce with doorstep delivery OTP</p>
+            </div>
+            <button
+              onClick={() => openFarmModal()}
+              className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
+            >
+              <span>Explore Farm App</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {farmProductsLoading ? (
+            <SkeletonGrid />
+          ) : farmProducts.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+              {farmProducts.slice(0, 8).map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 text-center bg-emerald-50/50 rounded-2xl border border-emerald-100 flex flex-col items-center gap-2">
+              <Sprout className="w-8 h-8 text-emerald-500" />
+              <p className="text-xs font-bold text-slate-700">Fresh harvest arriving daily</p>
+              <button
+                onClick={() => openFarmModal()}
+                className="px-4 py-2 rounded-full bg-emerald-700 text-white text-xs font-bold hover:bg-emerald-800 cursor-pointer"
+              >
+                Open Paykop Farm App
+              </button>
             </div>
           )}
         </Container>

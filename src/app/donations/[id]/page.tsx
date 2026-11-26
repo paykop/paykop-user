@@ -11,24 +11,46 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { api } from "@/lib/api/endpoints";
-import { DonationCampaign } from "@/types";
+import { DonationCampaign, OrganizationPublic } from "@/types";
 import { formatPaise, rupeesToPaise } from "@/lib/money";
-import { RazorpayCheckout } from "@/components/checkout/RazorpayCheckout";
+import { DonationModal } from "@/components/donations/DonationModal";
+import { toast } from "@/lib/toast";
 
 export default function CampaignDetailPage() {
   const params = useParams();
   const campaignId = params.id as string;
 
   const [campaign, setCampaign] = useState<DonationCampaign | null>(null);
+  const [org, setOrg] = useState<OrganizationPublic | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedRupees, setSelectedRupees] = useState(1000);
   const [customRupees, setCustomRupees] = useState("");
   const [donationSuccess, setDonationSuccess] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     api.donations
       .getCampaignById(campaignId)
-      .then((data) => setCampaign(data))
+      .then(async (data) => {
+        setCampaign(data);
+        if (data?.org_id) {
+          try {
+            const orgDetail = await api.donations.getOrganizationById(data.org_id);
+            setOrg(orgDetail);
+          } catch (e) {
+            console.error("Failed to load organization for campaign:", e);
+          }
+        } else {
+          try {
+            const orgList = await api.donations.listOrganizations(1, 1);
+            if (orgList?.organizations && orgList.organizations.length > 0) {
+              setOrg(orgList.organizations[0]);
+            }
+          } catch (e) {
+            console.error("Failed to load fallback organization:", e);
+          }
+        }
+      })
       .catch(() => setCampaign(null))
       .finally(() => setLoading(false));
   }, [campaignId]);
@@ -191,18 +213,42 @@ export default function CampaignDetailPage() {
                 />
               </div>
 
-              <RazorpayCheckout
-                campaignId={Number(campaignId)}
-                amountPaise={effectivePaise}
-                title={`Donation: ${campaign.title}`}
-                buttonText={`Donate ₹${effectiveRupees} Securely`}
-                buttonClassName="w-full py-4 px-6 rounded-full bg-pink-600 hover:bg-pink-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-colors cursor-pointer"
-                onSuccess={() => setDonationSuccess(true)}
-              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (!org) {
+                    toast.error("Organization details are still loading. Please try again in a moment.");
+                    return;
+                  }
+                  setModalOpen(true);
+                }}
+                className="w-full py-4 px-6 rounded-full bg-pink-600 hover:bg-pink-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-colors cursor-pointer"
+              >
+                Donate ₹{effectiveRupees} Securely
+              </button>
             </div>
           )}
         </div>
       </div>
+
+      {/* Verified Donation Modal */}
+      {org && (
+        <DonationModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          organization={org}
+          campaignId={Number(campaignId)}
+          campaignTitle={campaign.title}
+          defaultAmountRupees={effectiveRupees}
+          onSuccess={() => {
+            setDonationSuccess(true);
+            api.donations
+              .getCampaignById(campaignId)
+              .then((data) => setCampaign(data))
+              .catch(() => {});
+          }}
+        />
+      )}
     </div>
   );
 }

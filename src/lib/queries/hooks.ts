@@ -59,6 +59,19 @@ export function useNearbyProducts(opts: {
   });
 }
 
+export function useFarmProducts(limit = 8) {
+  return useQuery({
+    queryKey: ["products", "vertical", "farm", limit],
+    queryFn: async () => {
+      const data = await api.products.list({
+        vertical: "farm",
+        limit,
+      });
+      return data.products || [];
+    },
+  });
+}
+
 export function useCategories(vertical?: string) {
   return useQuery({
     queryKey: [...queryKeys.categories, vertical || "all"],

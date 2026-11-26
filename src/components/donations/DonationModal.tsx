@@ -22,6 +22,8 @@ interface DonationModalProps {
   organization: OrganizationPublic;
   campaignId?: number;
   campaignTitle?: string;
+  defaultAmountRupees?: number;
+  onSuccess?: (donation: DonationStatusResponse) => void;
 }
 
 function generateDonationKey(): string {
@@ -62,15 +64,30 @@ export function DonationModal({
   organization,
   campaignId,
   campaignTitle,
+  defaultAmountRupees,
+  onSuccess,
 }: DonationModalProps) {
   const initialUser = typeof window !== "undefined" && session.isAuthenticated() ? session.getUser() : null;
-  const [amountRupees, setAmountRupees] = useState<number>(1000);
-  const [customRupees, setCustomRupees] = useState<string>("");
+  const isPredefined = [500, 1000, 2500, 5000].includes(defaultAmountRupees || 0);
+  const [amountRupees, setAmountRupees] = useState<number>(() => (isPredefined ? (defaultAmountRupees || 1000) : 1000));
+  const [customRupees, setCustomRupees] = useState<string>(() => (!isPredefined && defaultAmountRupees ? String(defaultAmountRupees) : ""));
   const [donorName, setDonorName] = useState<string>(() => (initialUser ? `${initialUser.first_name || ""} ${initialUser.last_name || ""}`.trim() : ""));
   const [donorPhone, setDonorPhone] = useState<string>(() => (initialUser?.phone || ""));
   const [donorEmail, setDonorEmail] = useState<string>(() => (initialUser?.email || ""));
   const [taxEligible, setTaxEligible] = useState<boolean>(false);
   const [donorPan, setDonorPan] = useState<string>("");
+
+  useEffect(() => {
+    if (defaultAmountRupees && isOpen) {
+      if ([500, 1000, 2500, 5000].includes(defaultAmountRupees)) {
+        setAmountRupees(defaultAmountRupees);
+        setCustomRupees("");
+      } else {
+        setAmountRupees(1000);
+        setCustomRupees(String(defaultAmountRupees));
+      }
+    }
+  }, [defaultAmountRupees, isOpen]);
 
   const [loading, setLoading] = useState<boolean>(false);
   const [polling, setPolling] = useState<boolean>(false);
@@ -194,6 +211,7 @@ export function DonationModal({
           setPolling(false);
           setCompletedDonation(res);
           toast.success("Thank you! Your donation has been verified.");
+          if (onSuccess) onSuccess(res);
           return;
         }
         if (res.payment_status === "failed") {
